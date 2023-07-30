@@ -45,3 +45,9 @@ chroma -i tests/test.clover.ini.xml
 python3 tests/test.clover.py
 popd
 ```
+### MyDslash
+```bash
+pushd PyQuda
+source env.sh
+popd
+```
