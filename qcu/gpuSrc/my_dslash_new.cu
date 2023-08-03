@@ -1,16 +1,11 @@
 #include "qcu.h"
 #include <cstdio>
 #include <time.h>
-
+#include <cmath>
 #define NC 3
 #define ND 4
 #define NS 4
-#define BLOCK_SIZE 256
-
-// static void* gpu_gauge;
-// static void* gpu_fermion_out;
-// static void* gpu_fermion_in;
-
+#define BLOCK_SIZE 128
 
 #define checkCudaErrors(err) { \
     if (err != cudaSuccess) { \
@@ -19,17 +14,11 @@
                 exit(-1); \
         }\
     }
-// #define checkCudaErrors(err) { \
-//     if (err != cudaSuccess) { \
-//         fprintf(stderr, "checkCudaErrors() API error = %04d \"%s\" from file <%s>, line %i.\n", \
-//                 err, cudaGetErrorString(err), __FILE__, __LINE__); \
-//                 return(-1); \
-//         }\
-//     }
+
 #define getVecAddr(origin, x, y, z, t, Lx, Ly, Lz, Lt)  \
-    ((origin) + (t*(Lz*Ly*Lx) + z*(Ly*Lx) + y*Lx + x) * NS * NC)
+    ((origin) + (((t * Lz + z) *Ly + y)*Lx + x) * NS * NC)   // 9times
 #define getGaugeAddr(origin, direction, x, y, z, t, Lx, Ly, Lz, Lt) \
-    ((origin) + (direction * (Lt*Lz*Ly*Lx) + t*(Lz*Ly*Lx) + z*(Ly*Lx) + y*Lx + x) * NC * NC)
+    ((origin) + ((((direction * Lt + t)*Lz + z ) * Ly + y)*Lx + x) * NC * NC)    // 10 times
 
 class Complex {
 private:
@@ -42,6 +31,10 @@ public:
     Complex() : real_(0), imag_(0) {}
     __device__ __host__
     Complex(const Complex& complex) : real_(complex.real_), imag_(complex.imag_){}
+    __device__ __host__
+    double norm2() {
+        return sqrt(real_ * real_ + imag_ * imag_);
+    }
     __device__ __host__
     void setImag(double imag) { imag_ = imag; }
     __device__ __host__
@@ -85,6 +78,10 @@ public:
         imag_ = real_ * rhs.imag_ + imag_ * rhs.real_;
         return *this;
     }
+    __device__ __host__
+    Complex operator/ (const double& rhs) {
+        return Complex(real_/rhs, imag_/rhs);
+    }
 
     __device__ __host__
     Complex& operator+=(const Complex& rhs) {
@@ -118,42 +115,69 @@ public:
     bool operator!=(const Complex& rhs) {
         return real_ != rhs.real_ || imag_ != rhs.imag_;
     }
+    
 };
 
 __global__
 void gpuDslash(void* U_ptr, void* a_ptr, void* b_ptr, int Lx, int Ly, int Lz, int Lt) {
     int thread = blockIdx.x * blockDim.x + threadIdx.x;
+    // int tempn = thread;
+    // // int t = thread / (Lx * Ly * Lz);
+    // // int z = (thread - t * Lx * Ly * Lz) / (Lx * Ly);
+    // // int y = (thread % (Lx * Ly)) / Lx;
+    // // int x = thread % Lx;
     int t = thread / (Lx * Ly * Lz);
-    int z = (thread % (Lx * Ly * Lz)) / (Lx * Ly);
-    int y = (thread % (Lx * Ly)) / Lx;
-    int x = thread % Lx;
+    thread -= t * (Lx * Ly * Lz);
+    int z = thread / (Lx * Ly);
+    thread -= z * (Lx * Ly);
+    int y = thread / Lx;
+    int x = thread - y * Lx;
 
-    int pos_x, pos_y, pos_z, pos_t;
+    // int x = thread % Lx;
+    // thread /= Lx;
+    // int y = thread % Ly;
+    // thread /= Ly;
+    // int z = thread % Lz;
+    // int t = thread / Lz;
+
     Complex *u;
     Complex *res;
     Complex *dest;
     Complex u_temp[NC * NC];            // for GPU
     Complex res_temp[NS * NC];          // for GPU
     Complex dest_temp[NS * NC];         // for GPU
+    Complex u_last_line[NC];
+    double norm;
+    // Complex third_line_temp[NS];
     Complex temp;
-
+    // #pragma unroll
     for (int i = 0; i < NS*NC; i++) {
         dest_temp[i].clear2Zero();
     }
+    // memset(dest_temp, 0, sizeof(dest_temp));
     // \mu = 1
-    pos_x = (x+1)%Lx;
-    pos_y = y;
-    pos_z = z;
-    pos_t = t;
+    dest = getVecAddr(static_cast<Complex*>(b_ptr), x, y, z, t, Lx, Ly, Lz, Lt);
     u = getGaugeAddr(static_cast<Complex*>(U_ptr), 0, x, y, z, t, Lx, Ly, Lz, Lt);
-    for (int i = 0; i < NC * NC; i++) {
+    // memcpy(u_temp, u, sizeof(u_temp));
+    // #pragma unroll
+    for (int i = 0; i < 2 * NC; i++) {
         u_temp[i] = u[i];
     }
-    res = getVecAddr(static_cast<Complex*>(a_ptr), pos_x, pos_y, pos_z, pos_t, Lx, Ly, Lz, Lt);
+    u_last_line[0] = u_temp[1] * u_temp[5] - u_temp[2] * u_temp[4];
+    u_last_line[1] = u_temp[2] * u_temp[3] - u_temp[0] * u_temp[5];
+    u_last_line[2] = u_temp[0] * u_temp[4] - u_temp[1] * u_temp[3];
+    norm = sqrt(u_last_line[0].norm2() * u_last_line[0].norm2() + u_last_line[1].norm2() * u_last_line[1].norm2() + u_last_line[2].norm2() * u_last_line[2].norm2());
+    u_temp[6] = u_last_line[0].conj() / norm;
+    u_temp[7] = u_last_line[1].conj() / norm;
+    u_temp[8] = u_last_line[2].conj() / norm;
+
+    res = getVecAddr(static_cast<Complex*>(a_ptr), (x+1)%Lx, y, z, t, Lx, Ly, Lz, Lt);
+    // memcpy(res_temp, res, sizeof(res_temp));
+    // #pragma unroll
     for (int i = 0; i < NS * NC; i++) {
         res_temp[i] = res[i];
     }
-    dest = getVecAddr(static_cast<Complex*>(b_ptr), x, y, z, t, Lx, Ly, Lz, Lt);
+    // #pragma unroll
     for (int i = 0; i < NC; i++) {
         for (int j = 0; j < NC; j++) {
             // first row vector with col vector
@@ -166,19 +190,29 @@ void gpuDslash(void* U_ptr, void* a_ptr, void* b_ptr, int Lx, int Ly, int Lz, in
             dest_temp[2*3+i] += temp * Complex(0,1);
         }
     }
-    pos_x = (x+Lx-1)%Lx;
-    pos_y = y;
-    pos_z = z;
-    pos_t = t;
-    u = getGaugeAddr(static_cast<Complex*>(U_ptr), 0, pos_x, pos_y, pos_z, pos_t, Lx, Ly, Lz, Lt);
-    for (int i = 0; i < NC * NC; i++) {
+    u = getGaugeAddr(static_cast<Complex*>(U_ptr), 0, (x+Lx-1)%Lx, y, z, t, Lx, Ly, Lz, Lt);
+    // memcpy(u_temp, u, sizeof(u_temp));
+    // #pragma unroll
+    // for (int i = 0; i < NC * NC; i++) {
+    //     u_temp[i] = u[i];
+    // }
+    for (int i = 0; i < 2 * NC; i++) {
         u_temp[i] = u[i];
     }
-    res = getVecAddr(static_cast<Complex*>(a_ptr), pos_x, pos_y, pos_z, pos_t, Lx, Ly, Lz, Lt);
+    u_last_line[0] = u_temp[1] * u_temp[5] - u_temp[2] * u_temp[4];
+    u_last_line[1] = u_temp[2] * u_temp[3] - u_temp[0] * u_temp[5];
+    u_last_line[2] = u_temp[0] * u_temp[4] - u_temp[1] * u_temp[3];
+    norm = sqrt(u_last_line[0].norm2() * u_last_line[0].norm2() + u_last_line[1].norm2() * u_last_line[1].norm2() + u_last_line[2].norm2() * u_last_line[2].norm2());
+    u_temp[6] = u_last_line[0].conj() / norm;
+    u_temp[7] = u_last_line[1].conj() / norm;
+    u_temp[8] = u_last_line[2].conj() / norm;
+    res = getVecAddr(static_cast<Complex*>(a_ptr), (x+Lx-1)%Lx, y, z, t, Lx, Ly, Lz, Lt);
+    // memcpy(res_temp, res, sizeof(res_temp));
+    // #pragma unroll
     for (int i = 0; i < NS * NC; i++) {
         res_temp[i] = res[i];
     }
-    dest = getVecAddr(static_cast<Complex*>(b_ptr), x, y, z, t, Lx, Ly, Lz, Lt);
+    // #pragma unroll
     for (int i = 0; i < NC; i++) {
         for (int j = 0; j < NC; j++) {
             // first row vector with col vector
@@ -192,20 +226,27 @@ void gpuDslash(void* U_ptr, void* a_ptr, void* b_ptr, int Lx, int Ly, int Lz, in
         }
     }
     // \mu = 2
-    // linear combine
-    pos_x = x;
-    pos_y = (y+1)%Ly;
-    pos_z = z;
-    pos_t = t;
     u = getGaugeAddr(static_cast<Complex*>(U_ptr), 1, x, y, z, t, Lx, Ly, Lz, Lt);
-    for (int i = 0; i < NC * NC; i++) {
+    // #pragma unroll
+    // for (int i = 0; i < NC * NC; i++) {
+    //     u_temp[i] = u[i];
+    // }
+    for (int i = 0; i < 2 * NC; i++) {
         u_temp[i] = u[i];
     }
-    res = getVecAddr(static_cast<Complex*>(a_ptr), pos_x, pos_y, pos_z, pos_t, Lx, Ly, Lz, Lt);
+    u_last_line[0] = u_temp[1] * u_temp[5] - u_temp[2] * u_temp[4];
+    u_last_line[1] = u_temp[2] * u_temp[3] - u_temp[0] * u_temp[5];
+    u_last_line[2] = u_temp[0] * u_temp[4] - u_temp[1] * u_temp[3];
+    norm = sqrt(u_last_line[0].norm2() * u_last_line[0].norm2() + u_last_line[1].norm2() * u_last_line[1].norm2() + u_last_line[2].norm2() * u_last_line[2].norm2());
+    u_temp[6] = u_last_line[0].conj() / norm;
+    u_temp[7] = u_last_line[1].conj() / norm;
+    u_temp[8] = u_last_line[2].conj() / norm;
+    res = getVecAddr(static_cast<Complex*>(a_ptr), x, (y+1)%Ly, z, t, Lx, Ly, Lz, Lt);
+    // #pragma unroll
     for (int i = 0; i < NS * NC; i++) {
         res_temp[i] = res[i];
     }
-    dest = getVecAddr(static_cast<Complex*>(b_ptr), x, y, z, t, Lx, Ly, Lz, Lt);
+    // #pragma unroll
     for (int i = 0; i < NC; i++) {
         for (int j = 0; j < NC; j++) {
             // first row vector with col vector
@@ -218,20 +259,27 @@ void gpuDslash(void* U_ptr, void* a_ptr, void* b_ptr, int Lx, int Ly, int Lz, in
             dest_temp[2*3+i] += -temp;
         }
     }
-    pos_x = x;
-    pos_y = (y+Ly-1)%Ly;
-    pos_z = z;
-    pos_t = t;
-    u = getGaugeAddr(static_cast<Complex*>(U_ptr), 1, pos_x, pos_y, pos_z, pos_t, Lx, Ly, Lz, Lt);
-    for (int i = 0; i < NC * NC; i++) {
+    u = getGaugeAddr(static_cast<Complex*>(U_ptr), 1, x, (y+Ly-1)%Ly, z, t, Lx, Ly, Lz, Lt);
+    // for (int i = 0; i < NC * NC; i++) {
+    //     u_temp[i] = u[i];
+    // }
+    for (int i = 0; i < 2 * NC; i++) {
         u_temp[i] = u[i];
     }
-    res = getVecAddr(static_cast<Complex*>(a_ptr), pos_x, pos_y, pos_z, pos_t, Lx, Ly, Lz, Lt);
+    u_last_line[0] = u_temp[1] * u_temp[5] - u_temp[2] * u_temp[4];
+    u_last_line[1] = u_temp[2] * u_temp[3] - u_temp[0] * u_temp[5];
+    u_last_line[2] = u_temp[0] * u_temp[4] - u_temp[1] * u_temp[3];
+    norm = sqrt(u_last_line[0].norm2() * u_last_line[0].norm2() + u_last_line[1].norm2() * u_last_line[1].norm2() + u_last_line[2].norm2() * u_last_line[2].norm2());
+    u_temp[6] = u_last_line[0].conj() / norm;
+    u_temp[7] = u_last_line[1].conj() / norm;
+    u_temp[8] = u_last_line[2].conj() / norm;
+    res = getVecAddr(static_cast<Complex*>(a_ptr), x, (y+Ly-1)%Ly, z, t, Lx, Ly, Lz, Lt);
     for (int i = 0; i < NS * NC; i++) {
         res_temp[i] = res[i];
     }
-    dest = getVecAddr(static_cast<Complex*>(b_ptr), x, y, z, t, Lx, Ly, Lz, Lt);
+    // #pragma unroll
     for (int i = 0; i < NC; i++) {
+        // #pragma unroll
         for (int j = 0; j < NC; j++) {
             // first row vector with col vector
             temp = (res_temp[0*NC+j] - res_temp[3*NC+j]) * u_temp[j*NC+i].conj();   // transpose and conj
@@ -244,19 +292,27 @@ void gpuDslash(void* U_ptr, void* a_ptr, void* b_ptr, int Lx, int Ly, int Lz, in
         }
     }
     // \mu = 3
-    pos_x = x;
-    pos_y = y;
-    pos_z = (z+1)%Lz;
-    pos_t = t;
     u = getGaugeAddr(static_cast<Complex*>(U_ptr), 2, x, y, z, t, Lx, Ly, Lz, Lt);
-    for (int i = 0; i < NC * NC; i++) {
+    // #pragma unroll
+    // for (int i = 0; i < NC * NC; i++) {
+    //     u_temp[i] = u[i];
+    // }
+    for (int i = 0; i < 2 * NC; i++) {
         u_temp[i] = u[i];
     }
-    res = getVecAddr(static_cast<Complex*>(a_ptr), pos_x, pos_y, pos_z, pos_t, Lx, Ly, Lz, Lt);
+    u_last_line[0] = u_temp[1] * u_temp[5] - u_temp[2] * u_temp[4];
+    u_last_line[1] = u_temp[2] * u_temp[3] - u_temp[0] * u_temp[5];
+    u_last_line[2] = u_temp[0] * u_temp[4] - u_temp[1] * u_temp[3];
+    norm = sqrt(u_last_line[0].norm2() * u_last_line[0].norm2() + u_last_line[1].norm2() * u_last_line[1].norm2() + u_last_line[2].norm2() * u_last_line[2].norm2());
+    u_temp[6] = u_last_line[0].conj() / norm;
+    u_temp[7] = u_last_line[1].conj() / norm;
+    u_temp[8] = u_last_line[2].conj() / norm;
+    res = getVecAddr(static_cast<Complex*>(a_ptr), x, y, (z+1)%Lz, t, Lx, Ly, Lz, Lt);
+    // #pragma unroll
     for (int i = 0; i < NS * NC; i++) {
         res_temp[i] = res[i];
     }
-    dest = getVecAddr(static_cast<Complex*>(b_ptr), x, y, z, t, Lx, Ly, Lz, Lt);
+    // #pragma unroll
     for (int i = 0; i < NC; i++) {
         for (int j = 0; j < NC; j++) {
             // first row vector with col vector
@@ -269,19 +325,27 @@ void gpuDslash(void* U_ptr, void* a_ptr, void* b_ptr, int Lx, int Ly, int Lz, in
             dest_temp[3*3+i] += temp * Complex(0, -1);
         }
     }
-    pos_x = x;
-    pos_y = y;
-    pos_z = (z+Lz-1)%Lz;
-    pos_t = t;
-    u = getGaugeAddr(static_cast<Complex*>(U_ptr), 2, pos_x, pos_y, pos_z, pos_t, Lx, Ly, Lz, Lt);
-    for (int i = 0; i < NC * NC; i++) {
+    u = getGaugeAddr(static_cast<Complex*>(U_ptr), 2, x, y, (z+Lz-1)%Lz, t, Lx, Ly, Lz, Lt);
+    // #pragma unroll
+    // for (int i = 0; i < NC * NC; i++) {
+    //     u_temp[i] = u[i];
+    // }
+    for (int i = 0; i < 2 * NC; i++) {
         u_temp[i] = u[i];
     }
-    res = getVecAddr(static_cast<Complex*>(a_ptr), pos_x, pos_y, pos_z, pos_t, Lx, Ly, Lz, Lt);
+    u_last_line[0] = u_temp[1] * u_temp[5] - u_temp[2] * u_temp[4];
+    u_last_line[1] = u_temp[2] * u_temp[3] - u_temp[0] * u_temp[5];
+    u_last_line[2] = u_temp[0] * u_temp[4] - u_temp[1] * u_temp[3];
+    norm = sqrt(u_last_line[0].norm2() * u_last_line[0].norm2() + u_last_line[1].norm2() * u_last_line[1].norm2() + u_last_line[2].norm2() * u_last_line[2].norm2());
+    u_temp[6] = u_last_line[0].conj() / norm;
+    u_temp[7] = u_last_line[1].conj() / norm;
+    u_temp[8] = u_last_line[2].conj() / norm;
+    res = getVecAddr(static_cast<Complex*>(a_ptr), x, y, (z+Lz-1)%Lz, t, Lx, Ly, Lz, Lt);
+    // #pragma unroll
     for (int i = 0; i < NS * NC; i++) {
         res_temp[i] = res[i];
     }
-    dest = getVecAddr(static_cast<Complex*>(b_ptr), x, y, z, t, Lx, Ly, Lz, Lt);
+    // #pragma unroll
     for (int i = 0; i < NC; i++) {
         for (int j = 0; j < NC; j++) {
             // first row vector with col vector
@@ -295,19 +359,27 @@ void gpuDslash(void* U_ptr, void* a_ptr, void* b_ptr, int Lx, int Ly, int Lz, in
         }
     }
     // \mu = 4
-    pos_x = x;
-    pos_y = y;
-    pos_z = z;
-    pos_t = (t+1)%Lt;
     u = getGaugeAddr(static_cast<Complex*>(U_ptr), 3, x, y, z, t, Lx, Ly, Lz, Lt);
-    for (int i = 0; i < NC * NC; i++) {
+    // #pragma unroll
+    // for (int i = 0; i < NC * NC; i++) {
+    //     u_temp[i] = u[i];
+    // }
+    for (int i = 0; i < 2 * NC; i++) {
         u_temp[i] = u[i];
     }
-    res = getVecAddr(static_cast<Complex*>(a_ptr), pos_x, pos_y, pos_z, pos_t, Lx, Ly, Lz, Lt);
+    u_last_line[0] = u_temp[1] * u_temp[5] - u_temp[2] * u_temp[4];
+    u_last_line[1] = u_temp[2] * u_temp[3] - u_temp[0] * u_temp[5];
+    u_last_line[2] = u_temp[0] * u_temp[4] - u_temp[1] * u_temp[3];
+    norm = sqrt(u_last_line[0].norm2() * u_last_line[0].norm2() + u_last_line[1].norm2() * u_last_line[1].norm2() + u_last_line[2].norm2() * u_last_line[2].norm2());
+    u_temp[6] = u_last_line[0].conj() / norm;
+    u_temp[7] = u_last_line[1].conj() / norm;
+    u_temp[8] = u_last_line[2].conj() / norm;
+    res = getVecAddr(static_cast<Complex*>(a_ptr), x, y, z, (t+1)%Lt, Lx, Ly, Lz, Lt);
+    // #pragma unroll
     for (int i = 0; i < NS * NC; i++) {
         res_temp[i] = res[i];
     }
-    dest = getVecAddr(static_cast<Complex*>(b_ptr), x, y, z, t, Lx, Ly, Lz, Lt);
+    // #pragma unroll
     for (int i = 0; i < NC; i++) {
         for (int j = 0; j < NC; j++) {
             // first row vector with col vector
@@ -320,19 +392,27 @@ void gpuDslash(void* U_ptr, void* a_ptr, void* b_ptr, int Lx, int Ly, int Lz, in
             dest_temp[3*3+i] += -temp;
         }
     }
-    pos_x = x;
-    pos_y = y;
-    pos_z = z;
-    pos_t = (t+Lt-1)%Lt;
-    u = getGaugeAddr(static_cast<Complex*>(U_ptr), 3, pos_x, pos_y, pos_z, pos_t, Lx, Ly, Lz, Lt);
-    for (int i = 0; i < NC * NC; i++) {
+    u = getGaugeAddr(static_cast<Complex*>(U_ptr), 3, x, y, z, (t+Lt-1)%Lt, Lx, Ly, Lz, Lt);
+    // #pragma unroll
+    // for (int i = 0; i < NC * NC; i++) {
+    //     u_temp[i] = u[i];
+    // }
+    for (int i = 0; i < 2 * NC; i++) {
         u_temp[i] = u[i];
     }
-    res = getVecAddr(static_cast<Complex*>(a_ptr), pos_x, pos_y, pos_z, pos_t, Lx, Ly, Lz, Lt);
+    u_last_line[0] = u_temp[1] * u_temp[5] - u_temp[2] * u_temp[4];
+    u_last_line[1] = u_temp[2] * u_temp[3] - u_temp[0] * u_temp[5];
+    u_last_line[2] = u_temp[0] * u_temp[4] - u_temp[1] * u_temp[3];
+    norm = sqrt(u_last_line[0].norm2() * u_last_line[0].norm2() + u_last_line[1].norm2() * u_last_line[1].norm2() + u_last_line[2].norm2() * u_last_line[2].norm2());
+    u_temp[6] = u_last_line[0].conj() / norm;
+    u_temp[7] = u_last_line[1].conj() / norm;
+    u_temp[8] = u_last_line[2].conj() / norm;
+    res = getVecAddr(static_cast<Complex*>(a_ptr), x, y, z, (t+Lt-1)%Lt, Lx, Ly, Lz, Lt);
+    // #pragma unroll
     for (int i = 0; i < NS * NC; i++) {
         res_temp[i] = res[i];
     }
-    dest = getVecAddr(static_cast<Complex*>(b_ptr), x, y, z, t, Lx, Ly, Lz, Lt);
+    // #pragma unroll
     for (int i = 0; i < NC; i++) {
         for (int j = 0; j < NC; j++) {
             // first row vector with col vector
@@ -346,27 +426,13 @@ void gpuDslash(void* U_ptr, void* a_ptr, void* b_ptr, int Lx, int Ly, int Lz, in
         }
     }
     // end, copy result to dest
+    // #pragma unroll
     for (int i = 0; i < NS * NC; i++) {
         dest[i] = dest_temp[i];
     }
+    // memcpy(dest, dest_temp, sizeof(dest_temp));
 }
 
-// int prepare(void *fermion_out, void *fermion_in, void *gauge, QcuParam *param, size_t *gauge_ptr, size_t *fermion_in_ptr, size_t *fermion_out_ptr) {
-//     int Lx = param->lattice_size[0];
-//     int Ly = param->lattice_size[1];
-//     int Lz = param->lattice_size[2];
-//     int Lt = param->lattice_size[3];
-//     unsigned long u_size = ND * Lt * Lz * Ly * Lx * NC * NC * sizeof(Complex);
-//     unsigned long vec_size = Lt * Lz * Ly * Lx * NC * NC * sizeof(Complex);
-
-//     checkCudaErrors(cudaMalloc(&gpu_gauge, u_size));
-//     checkCudaErrors(cudaMalloc(&gpu_fermion_out, vec_size));
-//     checkCudaErrors(cudaMalloc(&gpu_fermion_in, vec_size));
-
-
-
-//     return 0; // success
-// }
 
 void dslashQcu(void *fermion_out, void *fermion_in, void *gauge, QcuParam *param) {
     clock_t start, end;
