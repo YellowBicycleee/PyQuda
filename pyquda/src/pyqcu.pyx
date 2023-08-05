@@ -26,3 +26,13 @@ def dslashQcu(numpy.ndarray fermion_out, numpy.ndarray fermion_in, numpy.ndarray
     ptr_uint64 = gauge.ctypes.data
     cdef void *gauge_ptr = <void *>ptr_uint64
     qcu.dslashQcu(fermion_out_ptr, fermion_in_ptr, gauge_ptr, &param.param)
+
+def dslashQcuEO(numpy.ndarray fermion_out, numpy.ndarray fermion_in, numpy.ndarray gauge, QcuParam param, int even_odd):
+    cdef size_t ptr_uint64
+    ptr_uint64 = fermion_out.ctypes.data
+    cdef void *fermion_out_ptr = <void *>ptr_uint64
+    ptr_uint64 = fermion_in.ctypes.data
+    cdef void *fermion_in_ptr = <void *>ptr_uint64
+    ptr_uint64 = gauge.ctypes.data
+    cdef void *gauge_ptr = <void *>ptr_uint64
+    qcu.dslashQcuEO(fermion_out_ptr, fermion_in_ptr, gauge_ptr, &param.param, even_odd)

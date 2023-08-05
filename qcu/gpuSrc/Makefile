@@ -1,7 +1,7 @@
 TARGET:=libqcu.so
 LIB:=libqcu.so
 INCLUDE:=$(shell pwd)/../../pyquda/include/qcu
-SRC:=my_dslash_new.cu
+SRC:=my_dslash_new.cu dslash_eo.cu
 FLAGS:=-arch=sm_70    # -g -G
 INSTALL_DIR:=$(shell pwd)/../../lib
 

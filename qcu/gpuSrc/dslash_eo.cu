@@ -412,8 +412,8 @@ void gpuDslash(void* U_ptr, void* a_ptr, void* b_ptr, int Lx, int Ly, int Lz, in
 }
 
 
-void dslashQcu(void *fermion_out, void *fermion_in, void *gauge, QcuParam *param) {
-    int even_odd = 0;   // waited to modify
+void dslashQcuEO(void *fermion_out, void *fermion_in, void *gauge, QcuParam *param, int even_odd) {
+    // int even_odd = 0;   // waited to modify
 
 
     clock_t start, end;
