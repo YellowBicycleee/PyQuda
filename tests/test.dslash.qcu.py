@@ -22,13 +22,9 @@ def eo_pre(data: np.ndarray, axes: List[int], dtype=None):
                 if eo == 0:
                     data_new[:, 0, t, z, y, :] = data_cb2[:, t, z, y, 0::2]
                     data_new[:, 1, t, z, y, :] = data_cb2[:, t, z, y, 1::2]
-                    # data_new[:, t, z, y, 0::2] = data_cb2[:, 0, t, z, y, :]
-                    # data_new[:, t, z, y, 1::2] = data_cb2[:, 1, t, z, y, :]
                 else:
                     data_new[:, 1, t, z, y, :] = data_cb2[:, t, z, y, 0::2]
                     data_new[:, 0, t, z, y, :] = data_cb2[:, t, z, y, 1::2]
-                    # data_new[:, t, z, y, 1::2] = data_cb2[:, 0, t, z, y, :]
-                    # data_new[:, t, z, y, 0::2] = data_cb2[:, 1, t, z, y, :]
     return data_new.reshape(*shape[:axes[0]], 2, Lt, Lz, Ly, Lx//2, *shape[axes[-1] + 1:])
 
 def vector_lexico(vec): #(2, Lt, Lz, Ly, Lx, Nd, Nc)
@@ -63,7 +59,7 @@ def applyDslash(Mp, p, U_seed):
     from pyquda.enum_quda import QudaParity
     from pyquda.field import LatticeFermion
     from pyquda.utils import gauge_utils
-
+    from time import perf_counter
     # Set parameters in Dslash and use m=-3.5 to make kappa=1
     dslash = core.getDslash(latt_size, -3.5, 0, 0, anti_periodic_t=False)
 
@@ -75,71 +71,78 @@ def applyDslash(Mp, p, U_seed):
     a = LatticeFermion(latt_size, cp.asarray(core.cb2(p, [0, 1, 2, 3])))
     b = LatticeFermion(latt_size)
     cp.cuda.runtime.deviceSynchronize()
+    t1 = perf_counter()
 
+    # Dslash a = b
+    quda.dslashQuda(b.even_ptr, a.odd_ptr, dslash.invert_param, QudaParity.QUDA_EVEN_PARITY)
+    quda.dslashQuda(b.odd_ptr, a.even_ptr, dslash.invert_param, QudaParity.QUDA_ODD_PARITY)
+    t2 = perf_counter()
 
-   # Dslash a = b
-#    quda.dslashQuda(b.even_ptr, a.odd_ptr, dslash.invert_param, QudaParity.QUDA_EVEN_PARITY)
-#    quda.dslashQuda(b.odd_ptr, a.even_ptr, dslash.invert_param, QudaParity.QUDA_ODD_PARITY)
-    t2 = timeit.timeit(lambda: quda.dslashQuda(b.even_ptr, a.odd_ptr, dslash.invert_param, QudaParity.QUDA_EVEN_PARITY), number=1)
-    t3 = timeit.timeit(lambda: quda.dslashQuda(b.odd_ptr, a.even_ptr, dslash.invert_param, QudaParity.QUDA_ODD_PARITY), number=1)
     # Save b to Mp
     Mp[:] = b.lexico()
 
     # Return gauge as a ndarray with shape (Nd, Lt, Lz, Ly, Lx, Ns, Ns)
-    return U.lexico(), t2+t3
+    return U.lexico(), t2-t1
 
-Mp = np.zeros((Lt, Lz, Ly, Lx, Ns, Nc), np.complex128)
+# Mp = np.zeros((Lt, Lz, Ly, Lx, Ns, Nc), np.complex128)
 # p = np.zeros((Lt, Lz, Ly, Lx, Ns, Nc), np.complex128)
 # p[0, 0, 0, 0, 0, 1] = 1
-shape = (Lt, Lz, Ly, Lx, Ns, Nc)
-p = np.random.randn(*shape, 2).view(np.complex128).reshape(shape)
-U,_ = applyDslash(Mp, p, 0)
+# shape = (Lt, Lz, Ly, Lx, Ns, Nc)
+# p = np.random.randn(*shape, 2).view(np.complex128).reshape(shape)
+# U,_ = applyDslash(Mp, p, 0)
 
-Mp1 = np.zeros((Lt, Lz, Ly, Lx, Ns, Nc), np.complex128)
-param = pyqcu.QcuParam()
-param.lattice_size = latt_size
+# Mp1 = np.zeros((Lt, Lz, Ly, Lx, Ns, Nc), np.complex128)
+# param = pyqcu.QcuParam()
+# param.lattice_size = latt_size
 
-p_pre = vector_eo_pre(p)
-Mp_pre = vector_eo_pre(Mp1)
-U_pre = gauge_eo_pre(U)
-pyqcu.dslashQcuEO(Mp_pre[0], p_pre[1], U_pre, param, 0)
-pyqcu.dslashQcuEO(Mp_pre[1], p_pre[0], U_pre, param, 1)
-my_res = vector_lexico(Mp_pre)
-print(my_res[0,0,0,1])
-print(Mp[0,0,0,1])
-res_p = vector_lexico(p_pre)
-print('p-resp: ', np.linalg.norm(p - res_p))
+# p_pre = vector_eo_pre(p)
+# Mp_pre = vector_eo_pre(Mp1)
+# U_pre = gauge_eo_pre(U)
+# pyqcu.dslashQcuEO(Mp_pre[0], p_pre[1], U_pre, param, 0)
+# pyqcu.dslashQcuEO(Mp_pre[1], p_pre[0], U_pre, param, 1)
+# my_res = vector_lexico(Mp_pre)
+# print(my_res[0,0,0,1])
+# print(Mp[0,0,0,1])
+# res_p = vector_lexico(p_pre)
+# print('p-resp: ', np.linalg.norm(p - res_p))
 # U_lexico = gauge_lexico(U_pre)
 # print('diff = ', np.linalg.norm(U_lexico - U))
 '----------------------------------------'
 
 
 #print(np.linalg.norm(Mp - Mp1)/np.linalg.norm(Mp))
+shape = (Lt, Lz, Ly, Lx, Ns, Nc)
 
-# def compare(round):
-#     print('===============round ', round, '======================')
-#     shape = (Lt, Lz, Ly, Lx, Ns, Nc)
-#     p = np.random.randn(*shape, 2).view(np.complex128).reshape(shape)
-#     print(p.shape)
-#     Mp = np.zeros((Lt, Lz, Ly, Lx, Ns, Nc), np.complex128)
-#     U, time_quda = applyDslash(Mp, p, 0)
-#     print('Quda dslash: = ', time_quda, 's')
-#     if round == 0:
-#         print('QUDA result of [0, 0, 0, 1]')
-#         print(Mp[0, 0, 0, 1])
-#     Mp1 = np.zeros((Lt, Lz, Ly, Lx, Ns, Nc), np.complex128)
-#     param = pyqcu.QcuParam()
-#     param.lattice_size = latt_size
-#     t = timeit.timeit(lambda: pyqcu.dslashQcu(Mp1, p, U, param), number=1)
-#     print('my_dslash: = ', t, 's')
-#     if round == 0:
-#         print('My result of [0, 0, 0, 1]')
-#         print(Mp1[0, 0, 0, 1])
-#     print('difference: ', np.linalg.norm(Mp-Mp1)/np.linalg.norm(Mp))
+def compare(round):
+    from time import perf_counter
+    print('===============round ', round, '======================')
+    # generate a vector p randomly
+    p = np.random.randn(*shape, 2).view(np.complex128).reshape(shape)
+    Mp = np.zeros((Lt, Lz, Ly, Lx, Ns, Nc), np.complex128)      # store the result of QUDA
+    # execute QUDA and get time
+    U, time_quda = applyDslash(Mp, p, 0)
+    print('Quda dslash: = ', time_quda, 's')
+
+    # then execute my code
+    Mp1 = np.zeros((Lt, Lz, Ly, Lx, Ns, Nc), np.complex128)
+    param = pyqcu.QcuParam()
+    param.lattice_size = latt_size
+    p_pre = vector_eo_pre(p)
+    Mp_pre = vector_eo_pre(Mp1)
+    U_pre = gauge_eo_pre(U)
+    t1 = perf_counter()
+    pyqcu.dslashQcuEO(Mp_pre[0], p_pre[1], U_pre, param, 0)
+    pyqcu.dslashQcuEO(Mp_pre[1], p_pre[0], U_pre, param, 1)
+    t2 = perf_counter()
+    my_res = vector_lexico(Mp_pre)
+    print('my_dslash total time: = ', t2-t1, 's')
+    res_p = vector_lexico(p_pre)
+    # print('p-resp: ', np.linalg.norm(p - res_p))
+    print('difference: ', np.linalg.norm(Mp-res_p)/np.linalg.norm(Mp))
 
 # # from time import perf_counter
 
 
 
-# for i in range(0, 5):
-#     compare(i)
+for i in range(0, 5):
+    compare(i)
