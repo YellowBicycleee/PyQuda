@@ -19,7 +19,7 @@
 #define getVecAddr(origin, x, y, z, t, Lx, Ly, Lz, Lt)  \
     ((origin) + ((((t) * (Lz) + (z)) * (Ly) + (y))*(Lx) + (x)) * NS * NC)   // 9 times
 #define getGaugeAddr(origin, direction, x, y, z, t, Lx, Ly, Lz, Lt, even_odd) \
-    ((origin) + (direction) * (Lt) * (Lz) * (Ly) * (Lx) * 2 * NC * NC + (even_odd) * ((Lt) * (Lz) * (Ly) * (Lx)) + ((((t) * (Lz) + (z)) * (Ly) + (y))*(Lx) + (x)) * NC * NC)
+    ((origin) + (direction) * (Lt) * (Lz) * (Ly) * (Lx) * 2 * NC * NC + (even_odd) * ((Lt) * (Lz) * (Ly) * (Lx) * NC * NC) + ((((t) * (Lz) + (z)) * (Ly) + (y))*(Lx) + (x)) * NC * NC)
 
 
 class Complex {
@@ -117,7 +117,10 @@ public:
     bool operator!=(const Complex& rhs) {
         return real_ != rhs.real_ || imag_ != rhs.imag_;
     }
-    
+    __device__ __host__
+    void output() const {
+        printf("(%lf, %lf)", real_, imag_);
+    }
 };
 
 // even_odd == 0---->even else odd
