@@ -136,12 +136,7 @@ def compare(round):
     t2 = perf_counter()
     my_res = vector_lexico(Mp_pre)
     print('my_dslash total time: = ', t2-t1, 's')
-    res_p = vector_lexico(p_pre)
-    # print('p-resp: ', np.linalg.norm(p - res_p))
-    print('difference: ', np.linalg.norm(Mp-res_p)/np.linalg.norm(Mp))
-
-# # from time import perf_counter
-
+    print('difference: ', np.linalg.norm(Mp-my_res)/np.linalg.norm(Mp))
 
 
 for i in range(0, 5):
