@@ -72,7 +72,6 @@ def applyDslash(Mp, p, U_seed):
     b = LatticeFermion(latt_size)
     cp.cuda.runtime.deviceSynchronize()
     t1 = perf_counter()
-
     # Dslash a = b
     quda.dslashQuda(b.even_ptr, a.odd_ptr, dslash.invert_param, QudaParity.QUDA_EVEN_PARITY)
     quda.dslashQuda(b.odd_ptr, a.even_ptr, dslash.invert_param, QudaParity.QUDA_ODD_PARITY)
