@@ -102,26 +102,18 @@ param.lattice_size = latt_size
 p_pre = vector_eo_pre(p)
 Mp_pre = vector_eo_pre(Mp1)
 U_pre = gauge_eo_pre(U)
-pyqcu.dslashQcuEO(Mp_pre[0], p_pre[1], U, param, 0)
-pyqcu.dslashQcuEO(Mp_pre[1], p_pre[0], U, param, 1)
+pyqcu.dslashQcuEO(Mp_pre[0], p_pre[1], U_pre, param, 0)
+pyqcu.dslashQcuEO(Mp_pre[1], p_pre[0], U_pre, param, 1)
 my_res = vector_lexico(Mp_pre)
 print(my_res[0,0,0,1])
 print(Mp[0,0,0,1])
+res_p = vector_lexico(p_pre)
+print('p-resp: ', np.linalg.norm(p - res_p))
 # U_lexico = gauge_lexico(U_pre)
 # print('diff = ', np.linalg.norm(U_lexico - U))
 '----------------------------------------'
 
-print(np.linalg.norm(Mp[0,0,0,1] - my_res[0,0,0,1]))
-print(np.linalg.norm(Mp[0,0,1,0] - my_res[0,0,1,0]))
-print(np.linalg.norm(Mp[0,1,0,0] - my_res[0,1,0,0]))
-print(np.linalg.norm(Mp[1,0,0,0] - my_res[1,0,0,0]))
-print(np.linalg.norm(Mp - my_res) / np.linalg.norm(Mp))
-for t in range(0, Lt):
-    for z in range(0, Lz):
-        for y in range(0, Ly):
-            for x in range(0, Lx):
-                if np.linalg.norm(Mp[t,z,y,x] - my_res[t,z,y,x]) > 0.5:
-                    print('(', x, ', ',y, ', ', z, ', ', t, ')')
+
 #print(np.linalg.norm(Mp - Mp1)/np.linalg.norm(Mp))
 
 # def compare(round):
