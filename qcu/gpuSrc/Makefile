@@ -10,8 +10,8 @@ INSTALL_DIR:=$(shell pwd)/../../lib
 ${LIB}: ${SRC}
 	nvcc -shared -Xcompiler -fPIC -o ${LIB} ${SRC} -I${INCLUDE} ${FLAGS}
 
-debug: ${SRC} test.cu
-	nvcc -o debug ${SRC} test.cu -I${INCLUDE} ${FLAGS} -G -g
+test: ${SRC} test.cu
+	nvcc -o test ${SRC} test.cu -I${INCLUDE} ${FLAGS} -G -g
 
 .PHONY: install clean
 
