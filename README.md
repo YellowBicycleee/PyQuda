@@ -49,9 +49,9 @@ popd
 ### MyDslash
 My dslash is based provide implement of dslash interface, then you can use these functions in PyQuda.
 First you should `source env.sh`.
-If you have installed PyQuda, then it is easy to use my files.
+If you have installed PyQuda and QUDA, then it is easy to use my files.
 First, go to directory PyQuda/qcu, then you can choose compile GPU/CPU src.
-For example, you entered gpuSrc, then you execute `make` and then `make install`, new `libqcu.so` will be stored into PyQuda/lib, then you can execute Python code in `tests`
+For example, you entered gpuSrc, then you execute `make` and then `make install`, new `libqcu.so` will be stored into PyQuda/lib, then you can execute Python code in `tests`. By the way, donnot forget to copy `libquda.so` from QUDA.
 ```bash
 pushd PyQuda
 source env.sh
