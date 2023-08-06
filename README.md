@@ -52,6 +52,8 @@ First you should `source env.sh`.
 If you have installed PyQuda and QUDA, then it is easy to use my files.
 First, go to directory PyQuda/qcu, then you can choose compile GPU/CPU src.
 For example, you entered gpuSrc, then you execute `make` and then `make install`, new `libqcu.so` will be stored into PyQuda/lib, then you can execute Python code in `tests`. By the way, donnot forget to copy `libquda.so` from QUDA.
+
+My Makefile is based on Nvidia V100, for other GPU, you may have to modify the compiler options such as `sm_70`, see Makefile.
 ```bash
 pushd PyQuda
 source env.sh
