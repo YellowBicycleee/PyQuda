@@ -99,17 +99,19 @@ public:
   __device__ __host__ void output() const { printf("(%lf, %lf)", real_, imag_); }
 };
 
-// transfer
+
 __global__ void gpuDslash(void *U_ptr, void *a_ptr, void *b_ptr, int Lx, int Ly, int Lz, int Lt, int parity)
 {
   assert(parity == 0 || parity == 1);
 
   __shared__ double shared_output_vec[BLOCK_SIZE * Ns * Nc * 2];
-  double* shared_dest;
-  shared_dest = static_cast<double*>(b_ptr) + (blockIdx.x * BLOCK_SIZE) * Ns * Nc * 2;
-  Complex *dest_temp;
+  double* shared_dest = static_cast<double*>(b_ptr) + (blockIdx.x * BLOCK_SIZE) * Ns * Nc * 2;
+  // clear result shared memory
+  for (int i = threadIdx.x; i < ((BLOCK_SIZE * Ns * Nc) << 1); i += BLOCK_SIZE) {
+    shared_output_vec[i] = 0;
+  }
 
-
+  Complex *dest_temp;   // the beginning address of result vectors on (x,y,z,t)
   int thread = blockIdx.x * blockDim.x + threadIdx.x;
   Lx >>= 1;
   int t = thread / (Lx * Ly * Lz);
@@ -127,11 +129,8 @@ __global__ void gpuDslash(void *U_ptr, void *a_ptr, void *b_ptr, int Lx, int Ly,
   Complex res_temp[Ns * Nc];  // for GPU
 
   Complex temp;
-  // clear result shared memory
-  for (int i = threadIdx.x; i < ((BLOCK_SIZE * Ns * Nc) << 1); i += BLOCK_SIZE) {
-    shared_output_vec[i] = 0;
-  }
-  __syncthreads();
+
+  __syncthreads();  // to sync because of clearing shared memory, delay to hide latency
   dest_temp = reinterpret_cast<Complex *>(shared_output_vec) + (threadIdx.x * Ns * Nc);
 
   // \mu = 1
