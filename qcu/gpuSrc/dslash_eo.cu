@@ -107,6 +107,8 @@ __global__ void gpuDslash(void *U_ptr, void *a_ptr, void *b_ptr, int Lx, int Ly,
   __shared__ double shared_output_vec[BLOCK_SIZE * Ns * Nc * 2];
   double* shared_dest;
   shared_dest = static_cast<double*>(b_ptr) + (blockIdx.x * BLOCK_SIZE) * Ns * Nc * 2;
+  Complex *dest_temp;
+
 
   int thread = blockIdx.x * blockDim.x + threadIdx.x;
   Lx >>= 1;
@@ -116,26 +118,21 @@ __global__ void gpuDslash(void *U_ptr, void *a_ptr, void *b_ptr, int Lx, int Ly,
   thread -= z * (Lx * Ly);
   int y = thread / Lx;
   int x = thread - y * Lx;
-  // int old_Lx = Lx;
-  // int sub_vol = Lt * Lz * Ly * Lx >> 2;
-
 
   int eo = (t + z + y) & 0x1;  //   int eo = (t + z + y) % 2;
   int pos_x;
   Complex *u;
   Complex *res;
-//   Complex *dest;
   Complex u_temp[Nc * Nc];    // for GPU
   Complex res_temp[Ns * Nc];  // for GPU
-  Complex dest_temp[Ns * Nc]; // for GPU
-  Complex u_last_line[Nc];
-  // double norm;
 
   Complex temp;
-  for (int i = 0; i < Ns * Nc; i++) {
-    dest_temp[i].clear2Zero();
+  // clear result shared memory
+  for (int i = threadIdx.x; i < ((BLOCK_SIZE * Ns * Nc) << 1); i += BLOCK_SIZE) {
+    shared_output_vec[i] = 0;
   }
-//   dest = getVecAddr(static_cast<Complex *>(b_ptr), x, y, z, t, Lx, Ly, Lz, Lt);
+  __syncthreads();
+  dest_temp = reinterpret_cast<Complex *>(shared_output_vec) + (threadIdx.x * Ns * Nc);
 
   // \mu = 1
   u = getGaugeAddr(static_cast<Complex *>(U_ptr), 0, x, y, z, t, Lx, Ly, Lz, Lt, parity);
@@ -143,12 +140,9 @@ __global__ void gpuDslash(void *U_ptr, void *a_ptr, void *b_ptr, int Lx, int Ly,
   for (int i = 0; i < 2 * Nc; i++) {
     u_temp[i] = u[i];
   }
-  u_last_line[0] = u_temp[1] * u_temp[5] - u_temp[2] * u_temp[4];
-  u_last_line[1] = u_temp[2] * u_temp[3] - u_temp[0] * u_temp[5];
-  u_last_line[2] = u_temp[0] * u_temp[4] - u_temp[1] * u_temp[3];
-  u_temp[6] = u_last_line[0].conj();
-  u_temp[7] = u_last_line[1].conj();
-  u_temp[8] = u_last_line[2].conj();
+  u_temp[6] = (u_temp[1] * u_temp[5] - u_temp[2] * u_temp[4]).conj();
+  u_temp[7] = (u_temp[2] * u_temp[3] - u_temp[0] * u_temp[5]).conj();
+  u_temp[8] = (u_temp[0] * u_temp[4] - u_temp[1] * u_temp[3]).conj();
   pos_x = (1 & ~(parity ^ eo)) * x + (parity ^ eo) * ((x + 1) % Lx);
   res = getVecAddr(static_cast<Complex *>(a_ptr), pos_x, y, z, t, Lx, Ly, Lz, Lt);
   for (int i = 0; i < Ns * Nc; i++) {
@@ -174,12 +168,9 @@ __global__ void gpuDslash(void *U_ptr, void *a_ptr, void *b_ptr, int Lx, int Ly,
   for (int i = 0; i < 2 * Nc; i++) {
     u_temp[i] = u[i];
   }
-  u_last_line[0] = u_temp[1] * u_temp[5] - u_temp[2] * u_temp[4];
-  u_last_line[1] = u_temp[2] * u_temp[3] - u_temp[0] * u_temp[5];
-  u_last_line[2] = u_temp[0] * u_temp[4] - u_temp[1] * u_temp[3];
-  u_temp[6] = u_last_line[0].conj();
-  u_temp[7] = u_last_line[1].conj();
-  u_temp[8] = u_last_line[2].conj();
+  u_temp[6] = (u_temp[1] * u_temp[5] - u_temp[2] * u_temp[4]).conj();
+  u_temp[7] = (u_temp[2] * u_temp[3] - u_temp[0] * u_temp[5]).conj();
+  u_temp[8] = (u_temp[0] * u_temp[4] - u_temp[1] * u_temp[3]).conj();
 
   res = getVecAddr(static_cast<Complex *>(a_ptr), pos_x, y, z, t, Lx, Ly, Lz, Lt);
   for (int i = 0; i < Ns * Nc; i++) {
@@ -207,12 +198,9 @@ __global__ void gpuDslash(void *U_ptr, void *a_ptr, void *b_ptr, int Lx, int Ly,
   for (int i = 0; i < 2 * Nc; i++) {
     u_temp[i] = u[i];
   }
-  u_last_line[0] = u_temp[1] * u_temp[5] - u_temp[2] * u_temp[4];
-  u_last_line[1] = u_temp[2] * u_temp[3] - u_temp[0] * u_temp[5];
-  u_last_line[2] = u_temp[0] * u_temp[4] - u_temp[1] * u_temp[3];
-  u_temp[6] = u_last_line[0].conj();
-  u_temp[7] = u_last_line[1].conj();
-  u_temp[8] = u_last_line[2].conj();
+  u_temp[6] = (u_temp[1] * u_temp[5] - u_temp[2] * u_temp[4]).conj();
+  u_temp[7] = (u_temp[2] * u_temp[3] - u_temp[0] * u_temp[5]).conj();
+  u_temp[8] = (u_temp[0] * u_temp[4] - u_temp[1] * u_temp[3]).conj();
   res = getVecAddr(static_cast<Complex *>(a_ptr), x, (y + 1) % Ly, z, t, Lx, Ly, Lz, Lt);
   for (int i = 0; i < Ns * Nc; i++) {
     res_temp[i] = res[i];
@@ -236,12 +224,9 @@ __global__ void gpuDslash(void *U_ptr, void *a_ptr, void *b_ptr, int Lx, int Ly,
   for (int i = 0; i < 2 * Nc; i++) {
     u_temp[i] = u[i];
   }
-  u_last_line[0] = u_temp[1] * u_temp[5] - u_temp[2] * u_temp[4];
-  u_last_line[1] = u_temp[2] * u_temp[3] - u_temp[0] * u_temp[5];
-  u_last_line[2] = u_temp[0] * u_temp[4] - u_temp[1] * u_temp[3];
-  u_temp[6] = u_last_line[0].conj();
-  u_temp[7] = u_last_line[1].conj();
-  u_temp[8] = u_last_line[2].conj();
+  u_temp[6] = (u_temp[1] * u_temp[5] - u_temp[2] * u_temp[4]).conj();
+  u_temp[7] = (u_temp[2] * u_temp[3] - u_temp[0] * u_temp[5]).conj();
+  u_temp[8] = (u_temp[0] * u_temp[4] - u_temp[1] * u_temp[3]).conj();
 
   res = getVecAddr(static_cast<Complex *>(a_ptr), x, (y + Ly - 1) % Ly, z, t, Lx, Ly, Lz, Lt);
   for (int i = 0; i < Ns * Nc; i++) {
@@ -267,12 +252,9 @@ __global__ void gpuDslash(void *U_ptr, void *a_ptr, void *b_ptr, int Lx, int Ly,
   for (int i = 0; i < 2 * Nc; i++) {
     u_temp[i] = u[i];
   }
-  u_last_line[0] = u_temp[1] * u_temp[5] - u_temp[2] * u_temp[4];
-  u_last_line[1] = u_temp[2] * u_temp[3] - u_temp[0] * u_temp[5];
-  u_last_line[2] = u_temp[0] * u_temp[4] - u_temp[1] * u_temp[3];
-  u_temp[6] = u_last_line[0].conj();
-  u_temp[7] = u_last_line[1].conj();
-  u_temp[8] = u_last_line[2].conj();
+  u_temp[6] = (u_temp[1] * u_temp[5] - u_temp[2] * u_temp[4]).conj();
+  u_temp[7] = (u_temp[2] * u_temp[3] - u_temp[0] * u_temp[5]).conj();
+  u_temp[8] = (u_temp[0] * u_temp[4] - u_temp[1] * u_temp[3]).conj();
   res = getVecAddr(static_cast<Complex *>(a_ptr), x, y, (z + 1) % Lz, t, Lx, Ly, Lz, Lt);
   for (int i = 0; i < Ns * Nc; i++) {
     res_temp[i] = res[i];
@@ -296,14 +278,10 @@ __global__ void gpuDslash(void *U_ptr, void *a_ptr, void *b_ptr, int Lx, int Ly,
   for (int i = 0; i < 2 * Nc; i++) {
     u_temp[i] = u[i];
   }
-  u_last_line[0] = u_temp[1] * u_temp[5] - u_temp[2] * u_temp[4];
-  u_last_line[1] = u_temp[2] * u_temp[3] - u_temp[0] * u_temp[5];
-  u_last_line[2] = u_temp[0] * u_temp[4] - u_temp[1] * u_temp[3];
-  // norm = sqrt(u_last_line[0].norm2() * u_last_line[0].norm2() + u_last_line[1].norm2() * u_last_line[1].norm2() +
-  // u_last_line[2].norm2() * u_last_line[2].norm2());
-  u_temp[6] = u_last_line[0].conj(); // norm;
-  u_temp[7] = u_last_line[1].conj(); // norm;
-  u_temp[8] = u_last_line[2].conj(); // norm;
+  u_temp[6] = (u_temp[1] * u_temp[5] - u_temp[2] * u_temp[4]).conj();
+  u_temp[7] = (u_temp[2] * u_temp[3] - u_temp[0] * u_temp[5]).conj();
+  u_temp[8] = (u_temp[0] * u_temp[4] - u_temp[1] * u_temp[3]).conj();
+
   res = getVecAddr(static_cast<Complex *>(a_ptr), x, y, (z + Lz - 1) % Lz, t, Lx, Ly, Lz, Lt);
   for (int i = 0; i < Ns * Nc; i++) {
     res_temp[i] = res[i];
@@ -330,14 +308,9 @@ __global__ void gpuDslash(void *U_ptr, void *a_ptr, void *b_ptr, int Lx, int Ly,
   for (int i = 0; i < 2 * Nc; i++) {
     u_temp[i] = u[i];
   }
-  u_last_line[0] = u_temp[1] * u_temp[5] - u_temp[2] * u_temp[4];
-  u_last_line[1] = u_temp[2] * u_temp[3] - u_temp[0] * u_temp[5];
-  u_last_line[2] = u_temp[0] * u_temp[4] - u_temp[1] * u_temp[3];
-  // norm = sqrt(u_last_line[0].norm2() * u_last_line[0].norm2() + u_last_line[1].norm2() * u_last_line[1].norm2() +
-  // u_last_line[2].norm2() * u_last_line[2].norm2());
-  u_temp[6] = u_last_line[0].conj(); // norm;
-  u_temp[7] = u_last_line[1].conj(); // norm;
-  u_temp[8] = u_last_line[2].conj(); // norm;
+  u_temp[6] = (u_temp[1] * u_temp[5] - u_temp[2] * u_temp[4]).conj();
+  u_temp[7] = (u_temp[2] * u_temp[3] - u_temp[0] * u_temp[5]).conj();
+  u_temp[8] = (u_temp[0] * u_temp[4] - u_temp[1] * u_temp[3]).conj();
   res = getVecAddr(static_cast<Complex *>(a_ptr), x, y, z, (t + 1) % Lt, Lx, Ly, Lz, Lt);
   for (int i = 0; i < Ns * Nc; i++) {
     res_temp[i] = res[i];
@@ -362,14 +335,9 @@ __global__ void gpuDslash(void *U_ptr, void *a_ptr, void *b_ptr, int Lx, int Ly,
   for (int i = 0; i < 2 * Nc; i++) {
     u_temp[i] = u[i];
   }
-  u_last_line[0] = u_temp[1] * u_temp[5] - u_temp[2] * u_temp[4];
-  u_last_line[1] = u_temp[2] * u_temp[3] - u_temp[0] * u_temp[5];
-  u_last_line[2] = u_temp[0] * u_temp[4] - u_temp[1] * u_temp[3];
-  // norm = sqrt(u_last_line[0].norm2() * u_last_line[0].norm2() + u_last_line[1].norm2() * u_last_line[1].norm2() +
-  // u_last_line[2].norm2() * u_last_line[2].norm2());
-  u_temp[6] = u_last_line[0].conj(); // / norm;
-  u_temp[7] = u_last_line[1].conj(); // / norm;
-  u_temp[8] = u_last_line[2].conj(); // / norm;
+  u_temp[6] = (u_temp[1] * u_temp[5] - u_temp[2] * u_temp[4]).conj();
+  u_temp[7] = (u_temp[2] * u_temp[3] - u_temp[0] * u_temp[5]).conj();
+  u_temp[8] = (u_temp[0] * u_temp[4] - u_temp[1] * u_temp[3]).conj();
   res = getVecAddr(static_cast<Complex *>(a_ptr), x, y, z, (t + Lt - 1) % Lt, Lx, Ly, Lz, Lt);
   for (int i = 0; i < Ns * Nc; i++) {
     res_temp[i] = res[i];
@@ -390,10 +358,10 @@ __global__ void gpuDslash(void *U_ptr, void *a_ptr, void *b_ptr, int Lx, int Ly,
 //   for (int i = 0; i < Ns * Nc; i++) {
 //     dest[i] = dest_temp[i];
 //   }
-  for (int i = 0; i < Ns * Nc; i++) {
-    shared_output_vec[((threadIdx.x * Ns * Nc) << 1) + 2 * i] = dest_temp[i].real();
-    shared_output_vec[((threadIdx.x * Ns * Nc) << 1) + 2 * i + 1] = dest_temp[i].imag();
-  }
+  // for (int i = 0; i < Ns * Nc; i++) {
+  //   shared_output_vec[((threadIdx.x * Ns * Nc) << 1) + 2 * i] = dest_temp[i].real();
+  //   shared_output_vec[((threadIdx.x * Ns * Nc) << 1) + 2 * i + 1] = dest_temp[i].imag();
+  // }
   __syncthreads();
   // load to global memory
   for (int i = threadIdx.x; i < ((BLOCK_SIZE * Ns * Nc) << 1); i += BLOCK_SIZE) {
