@@ -1,11 +1,8 @@
-import numpy
-cimport numpy
-
 cimport qcu
+from pyquda.pointer cimport Pointer, Pointers, Pointerss
 
 cdef class QcuParam:
     cdef qcu.QcuParam param
-
     def __init__(self):
         pass
 
@@ -17,22 +14,57 @@ cdef class QcuParam:
     def lattice_size(self, value):
         self.param.lattice_size = value
 
-def dslashQcu(numpy.ndarray fermion_out, numpy.ndarray fermion_in, numpy.ndarray gauge, QcuParam param):
-    cdef size_t ptr_uint64
-    ptr_uint64 = fermion_out.ctypes.data
-    cdef void *fermion_out_ptr = <void *>ptr_uint64
-    ptr_uint64 = fermion_in.ctypes.data
-    cdef void *fermion_in_ptr = <void *>ptr_uint64
-    ptr_uint64 = gauge.ctypes.data
-    cdef void *gauge_ptr = <void *>ptr_uint64
-    qcu.dslashQcu(fermion_out_ptr, fermion_in_ptr, gauge_ptr, &param.param)
+cdef class QcuGrid:
+    cdef qcu.QcuGrid grid
+    def __init__(self):
+        pass
+    @property
+    def grid_size(self):
+        return self.grid.grid_size
 
-def dslashQcuEO(numpy.ndarray fermion_out, numpy.ndarray fermion_in, numpy.ndarray gauge, QcuParam param, int even_odd):
-    cdef size_t ptr_uint64
-    ptr_uint64 = fermion_out.ctypes.data
-    cdef void *fermion_out_ptr = <void *>ptr_uint64
-    ptr_uint64 = fermion_in.ctypes.data
-    cdef void *fermion_in_ptr = <void *>ptr_uint64
-    ptr_uint64 = gauge.ctypes.data
-    cdef void *gauge_ptr = <void *>ptr_uint64
-    qcu.dslashQcuEO(fermion_out_ptr, fermion_in_ptr, gauge_ptr, &param.param, even_odd)
+    @grid_size.setter
+    def grid_size(self, value):
+        self.grid.grid_size = value
+
+# def dslashQcu(Pointer fermion_out, Pointer fermion_in, Pointer gauge, QcuParam param, int parity):
+#     qcu.dslashQcu(fermion_out.ptr, fermion_in.ptr, gauge.ptr, &param.param, parity)
+# 
+# def fullDslashQcu(Pointer fermion_out, Pointer fermion_in, Pointer gauge, QcuParam param, int parity):
+#     qcu.fullDslashQcu(fermion_out.ptr, fermion_in.ptr, gauge.ptr, &param.param, parity)
+# #void fullDslashQcu(void *fermion_out, void *fermion_in, void *gauge, QcuParam *param, int dagger_flag);
+# def initGridSize(QcuGrid grid_param, QcuParam param, Pointer gauge, Pointer fermion_in, Pointer fermion_out):
+#     qcu.initGridSize(&grid_param.grid, &param.param, gauge.ptr, fermion_in.ptr, fermion_out.ptr)
+# 
+# 
+# def cg_inverter(Pointer b_vector, Pointer x_vector, Pointer gauge, QcuParam param, double p_max_prec, double p_kappa):
+#     qcu.cg_inverter(b_vector.ptr, x_vector.ptr, gauge.ptr, &param.param, p_max_prec, p_kappa)
+# 
+# def loadQcuGauge(Pointer gauge, QcuParam param):
+#     qcu.loadQcuGauge(gauge.ptr, &param.param)
+# void loadQcuGauge(void* gauge, QcuParam *param);
+
+
+def initGridSize(QcuGrid grid_param, QcuParam param, int n_color, int m_rhs, int input_precision, int dslash_precision):
+    qcu.initGridSize(&grid_param.grid, &param.param, n_color, m_rhs, input_precision, dslash_precision)
+    # void initGridSize(QcuGrid *grid, QcuParam *param, int n_color, int m_rhs, int inputFloatPrecision, int dslashFloatPrecision)
+
+def pushBackFermions(Pointer fermion_out, Pointer fermion_in):
+    qcu.pushBackFermions(fermion_out.ptr, fermion_in.ptr)
+    # void pushBackFermions(void *fermionOut, void *fermionIn)    
+
+def loadQcuGauge(Pointer gauge, int float_precision):
+    qcu.loadQcuGauge(gauge.ptr, float_precision)
+    # void loadQcuGauge(void *gauge, int floatPrecision)
+
+def getDslash(int dslash_type, double mass):
+    qcu.getDslash(dslash_type, mass)
+    # void getDslash(int dslashType, double mass)
+
+def finalizeQcu():
+    qcu.finalizeQcu()
+    # void finalizeQcu()
+def start_dslash(int parity, int daggerFlag):
+    qcu.start_dslash(parity, daggerFlag)
+
+def qcuInvert(int max_iteration, double p_max_prec):
+    qcu.qcuInvert(max_iteration, p_max_prec)

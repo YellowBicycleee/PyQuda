@@ -1,6 +1,12 @@
 cdef extern from "qcu.h":
     ctypedef struct QcuParam:
         int lattice_size[4]
-
-    void dslashQcu(void *fermion_out, void *fermion_in, void *gauge, QcuParam *param)
-    void dslashQcuEO(void *fermion_out, void *fermion_in, void *gauge, QcuParam *param, int even_odd)
+    ctypedef struct QcuGrid:
+        int grid_size[4]
+    void initGridSize(QcuGrid *grid, QcuParam *param, int n_color, int m_rhs, int inputFloatPrecision, int dslashFloatPrecision)
+    void pushBackFermions(void *fermionOut, void *fermionIn)
+    void loadQcuGauge(void *gauge, int floatPrecision)
+    void getDslash(int dslashType, double mass)
+    void finalizeQcu()
+    void start_dslash(int parity, int daggerFlag)
+    void qcuInvert(int max_iteration, double p_max_prec)

@@ -1,4 +1,4 @@
 mpi4py
 numpy
-cupy
+cupy-cuda11x
 Cython

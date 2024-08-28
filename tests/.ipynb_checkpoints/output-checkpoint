@@ -1,0 +1,108 @@
+Disabling GPU-Direct RDMA access
+Enabling peer-to-peer copy engine and direct load/store access
+Intra-node (non peer-to-peer) enabled for rank   1 (gpu=1) with neighbor   0 (gpu=0) dir=0, dim=3
+Intra-node (non peer-to-peer) enabled for rank   1 (gpu=1) with neighbor   0 (gpu=0) dir=1, dim=3
+Intra-node (non peer-to-peer) enabled for rank   0 (gpu=0) with neighbor   1 (gpu=1) dir=0, dim=3
+Intra-node (non peer-to-peer) enabled for rank   0 (gpu=0) with neighbor   1 (gpu=1) dir=1, dim=3
+QUDA 1.1.0 (git 1.1.0-d571552ff-sm_70)
+CUDA Driver version = 11060
+CUDA Runtime version = 11060
+Graphic driver version = 460.32.03
+Found device 0: Tesla V100-SXM2-32GB
+Found device 1: Tesla V100-SXM2-32GB
+Found device 2: Tesla V100-SXM2-32GB
+Found device 3: Tesla V100-SXM2-32GB
+Using device 0: Tesla V100-SXM2-32GB
+WARNING: Data reordering done on GPU (set with QUDA_REORDER_LOCATION=GPU/CPU)
+Loaded 121 sets of cached parameters from .cache/tunecache.tsv
+Loaded 121 sets of cached parameters from .cache/tunecache.tsv
+WARNING: Using device memory pool allocator
+WARNING: Using pinned memory pool allocator
+[0, 0, 0, 1]
+cublasCreated successfully
+[0, 0, 0, 0]
+latt_size=[16, 16, 16, 16]
+latt_size=[16, 16, 16, 16]
+Creating Gaussian distributed Lie group field with sigma = 1.000000e-01
+Quda dslash: 0.0031554773449897766 sec
+Quda dslash: 0.0031530000269412994 sec
+Recv process 1, parity 0, fermion_out 0x7f22a4000000 
+process 1, from process 0, recv 0,0,0,0 vectors
+[0;34m(0.000000 + 0.000000i)(0.000000 + 0.000000i)(0.000000 + 0.000000i)(0.000000 + 0.000000i)(0.000000 + 0.000000i)(0.000000 + 0.000000i)(0.000000 + 0.000000i)(0.000000 + 0.000000i)(0.000000 + 0.000000i)(0.000000 + 0.000000i)(0.000000 + 0.000000i)(0.000000 + 0.000000i)[0m
+total time: (without malloc free memcpy) : 0.003187363 sec
+total time: (without malloc free memcpy) : 0.003226785 sec
+Recv process 1, parity 1, fermion_out 0x7f22a4600000 
+process 1, from process 0, recv 0,0,0,0 vectors
+[0;34m(1.000000 + 0.000000i)(0.000000 + 0.000000i)(0.000000 + 0.000000i)(0.000000 + 0.000000i)(0.000000 + 0.000000i)(0.000000 + 0.000000i)(0.000000 + 0.000000i)(0.000000 + 0.000000i)(0.000000 + 0.000000i)(0.000000 + 0.000000i)(0.000000 + 0.000000i)(0.000000 + 0.000000i)[0m
+total time: (without malloc free memcpy) : 0.000130723 sec
+total time: (without malloc free memcpy) : 0.000136635 sec
+QCU dslash: 0.00914071500301361 sec
+QCU dslash: 0.008567232638597488 sec
+rank 1 difference: , 0.25000000000000006
+rank 0 difference: , 1.8621629269866653e-16
+rank = 1, res = [[ 0.99518906+0.02850921j  0.05499454-0.02591898j  0.0703946 +0.01159182j]
+ [ 0.        +0.j          0.        +0.j          0.        +0.j        ]
+ [-0.99518906-0.02850921j -0.05499454+0.02591898j -0.0703946 -0.01159182j]
+ [ 0.        +0.j          0.        +0.j          0.        +0.j        ]]
+rank = 0, res = [[ 0.99327211+0.05490426j -0.01551395-0.0943794j   0.00130937-0.03530119j]
+ [ 0.        +0.j          0.        +0.j          0.        +0.j        ]
+ [-0.99327211-0.05490426j  0.01551395+0.0943794j  -0.00130937+0.03530119j]
+ [ 0.        +0.j          0.        +0.j          0.        +0.j        ]]
+rank = 1, res1 = [[0.+0.j 0.+0.j 0.+0.j]
+ [0.+0.j 0.+0.j 0.+0.j]
+ [0.+0.j 0.+0.j 0.+0.j]
+ [0.+0.j 0.+0.j 0.+0.j]]
+rank = 0, res1 = [[ 0.99327211+0.05490426j -0.01551395-0.0943794j   0.00130937-0.03530119j]
+ [ 0.        +0.j          0.        +0.j          0.        +0.j        ]
+ [-0.99327211-0.05490426j  0.01551395+0.0943794j  -0.00130937+0.03530119j]
+ [ 0.        +0.j          0.        +0.j          0.        +0.j        ]]
+rank = 1, coord(x,y,z,t) = 0,0,0,15
+============================
+============================
+WARNING: Environment variable QUDA_PROFILE_OUTPUT_BASE not set; writing to profile.tsv and profile_async.tsv
+Saving 21 sets of cached parameters to .cache/profile_0.tsv
+Saving 0 sets of cached profiles to .cache/profile_async_0.tsv
+
+               initQuda Total time =     5.321 secs
+                     init     =     5.321 secs ( 99.996%),	 with        2 calls at 2.661e+06 us per call
+        total accounted       =     5.321 secs ( 99.996%)
+        total missing         =     0.000 secs (  0.004%)
+
+          loadGaugeQuda Total time =     0.012 secs
+                 download     =     0.009 secs ( 74.666%),	 with        2 calls at 4.614e+03 us per call
+                   upload     =     0.001 secs (  6.368%),	 with        1 calls at 7.870e+02 us per call
+                     init     =     0.001 secs (  7.436%),	 with        2 calls at 4.595e+02 us per call
+                  compute     =     0.001 secs ( 11.150%),	 with        2 calls at 6.890e+02 us per call
+                     free     =     0.000 secs (  0.081%),	 with        2 calls at 5.000e+00 us per call
+        total accounted       =     0.012 secs ( 99.701%)
+        total missing         =     0.000 secs (  0.299%)
+
+             dslashQuda Total time =     0.002 secs
+                 download     =     0.000 secs ( 18.990%),	 with        2 calls at 2.200e+02 us per call
+                   upload     =     0.000 secs (  1.165%),	 with        2 calls at 1.350e+01 us per call
+                     init     =     0.000 secs (  4.532%),	 with        2 calls at 5.250e+01 us per call
+                  compute     =     0.002 secs ( 74.968%),	 with        2 calls at 8.685e+02 us per call
+                     free     =     0.000 secs (  0.216%),	 with        2 calls at 2.500e+00 us per call
+        total accounted       =     0.002 secs ( 99.871%)
+        total missing         =     0.000 secs (  0.129%)
+
+                endQuda Total time =     0.008 secs
+
+       initQuda-endQuda Total time =    12.179 secs
+
+                   QUDA Total time =     5.346 secs
+                 download     =     0.010 secs (  0.181%),	 with        4 calls at 2.417e+03 us per call
+                   upload     =     0.001 secs (  0.015%),	 with        3 calls at 2.717e+02 us per call
+                     init     =     5.322 secs ( 99.545%),	 with        6 calls at 8.870e+05 us per call
+                  compute     =     0.006 secs (  0.115%),	 with        5 calls at 1.227e+03 us per call
+                     free     =     0.000 secs (  0.000%),	 with        4 calls at 3.500e+00 us per call
+        total accounted       =     5.339 secs ( 99.857%)
+        total missing         =     0.008 secs (  0.143%)
+
+Device memory used = 91.5 MiB
+Pinned device memory used = 0.0 MiB
+Managed memory used = 0.0 MiB
+Shmem memory used = 0.0 MiB
+Page-locked host memory used = 6.0 MiB
+Total host memory used >= 8.3 MiB
+

@@ -1,21 +1,78 @@
 from typing import List
 
+from ..pointer import Pointer
 from ..pyquda import (
-    Pointer, QudaGaugeParam, QudaInvertParam, QudaMultigridParam, loadCloverQuda, loadGaugeQuda, invertQuda,
-    dslashQuda, cloverQuda
+    QudaGaugeParam,
+    QudaInvertParam,
+    QudaMultigridParam,
+    loadCloverQuda,
+    loadGaugeQuda,
+    invertQuda,
+    dslashQuda,
+    cloverQuda,
 )
 from ..field import LatticeGauge, LatticeFermion
 from ..enum_quda import (  # noqa: F401
-    QudaMemoryType, QudaLinkType, QudaGaugeFieldOrder, QudaTboundary, QudaPrecision, QudaReconstructType,
-    QudaGaugeFixed, QudaDslashType, QudaInverterType, QudaEigType, QudaEigSpectrumType, QudaSolutionType,
-    QudaSolveType, QudaMultigridCycleType, QudaSchwarzType, QudaResidualType, QudaCABasis, QudaMatPCType, QudaDagType,
-    QudaMassNormalization, QudaSolverNormalization, QudaPreserveSource, QudaDiracFieldOrder, QudaCloverFieldOrder,
-    QudaVerbosity, QudaTune, QudaPreserveDirac, QudaParity, QudaDiracType, QudaFieldLocation, QudaSiteSubset,
-    QudaSiteOrder, QudaFieldOrder, QudaFieldCreate, QudaGammaBasis, QudaSourceType, QudaNoiseType, QudaProjectionType,
-    QudaPCType, QudaTwistFlavorType, QudaTwistDslashType, QudaTwistCloverDslashType, QudaTwistGamma5Type,
-    QudaUseInitGuess, QudaDeflatedGuess, QudaComputeNullVector, QudaSetupType, QudaTransferType, QudaBoolean,
-    QudaBLASOperation, QudaBLASDataType, QudaBLASDataOrder, QudaDirection, QudaLinkDirection, QudaFieldGeometry,
-    QudaGhostExchange, QudaStaggeredPhase, QudaContractType, QudaContractGamma, QudaExtLibType
+    QudaMemoryType,
+    QudaLinkType,
+    QudaGaugeFieldOrder,
+    QudaTboundary,
+    QudaPrecision,
+    QudaReconstructType,
+    QudaGaugeFixed,
+    QudaDslashType,
+    QudaInverterType,
+    QudaEigType,
+    QudaEigSpectrumType,
+    QudaSolutionType,
+    QudaSolveType,
+    QudaMultigridCycleType,
+    QudaSchwarzType,
+    QudaResidualType,
+    QudaCABasis,
+    QudaMatPCType,
+    QudaDagType,
+    QudaMassNormalization,
+    QudaSolverNormalization,
+    QudaPreserveSource,
+    QudaDiracFieldOrder,
+    QudaCloverFieldOrder,
+    QudaVerbosity,
+    QudaTune,
+    QudaPreserveDirac,
+    QudaParity,
+    QudaDiracType,
+    QudaFieldLocation,
+    QudaSiteSubset,
+    QudaSiteOrder,
+    QudaFieldOrder,
+    QudaFieldCreate,
+    QudaGammaBasis,
+    QudaSourceType,
+    QudaNoiseType,
+    QudaProjectionType,
+    QudaPCType,
+    QudaTwistFlavorType,
+    QudaTwistDslashType,
+    QudaTwistCloverDslashType,
+    QudaTwistGamma5Type,
+    QudaUseInitGuess,
+    QudaDeflatedGuess,
+    QudaComputeNullVector,
+    QudaSetupType,
+    QudaTransferType,
+    QudaBoolean,
+    QudaBLASOperation,
+    QudaBLASDataType,
+    QudaBLASDataOrder,
+    QudaDirection,
+    QudaLinkDirection,
+    QudaFieldGeometry,
+    QudaGhostExchange,
+    QudaStaggeredPhase,
+    QudaContractType,
+    QudaContractGamma,
+    QudaExtLibType,
 )
 from ..enum_quda import QUDA_MAX_DIM, QUDA_MAX_MULTI_SHIFT, QUDA_MAX_MG_LEVEL
 
@@ -23,9 +80,12 @@ nullptr = Pointer("void")
 
 cpu_prec = QudaPrecision.QUDA_DOUBLE_PRECISION
 cuda_prec = QudaPrecision.QUDA_DOUBLE_PRECISION
-cuda_prec_sloppy = QudaPrecision.QUDA_HALF_PRECISION
-cuda_prec_precondition = QudaPrecision.QUDA_HALF_PRECISION
-cuda_prec_eigensolver = QudaPrecision.QUDA_SINGLE_PRECISION
+#cuda_prec_sloppy = QudaPrecision.QUDA_HALF_PRECISION
+cuda_prec_sloppy = QudaPrecision.QUDA_DOUBLE_PRECISION
+#cuda_prec_precondition = QudaPrecision.QUDA_HALF_PRECISION
+cuda_prec_precondition = QudaPrecision.QUDA_DOUBLE_PRECISION
+#cuda_prec_eigensolver = QudaPrecision.QUDA_SINGLE_PRECISION
+cuda_prec_eigensolver = QudaPrecision.QUDA_DOUBLE_PRECISION
 link_recon = QudaReconstructType.QUDA_RECONSTRUCT_12
 link_recon_sloppy = QudaReconstructType.QUDA_RECONSTRUCT_12
 
@@ -178,7 +238,7 @@ def newQudaInvertParam(
     maxiter: int,
     clover_coeff: float,
     clover_anisotropy: float,
-    mg_param: QudaMultigridParam = None
+    mg_param: QudaMultigridParam = None,
 ):
     invert_param = QudaInvertParam()
 

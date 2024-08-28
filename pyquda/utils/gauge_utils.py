@@ -43,12 +43,14 @@ def readIldg(filename: str):
     latt_size = [Lx // Gx, Ly // Gy, Lz // Gz, Lt // Gt]
     Lx, Ly, Lz, Lt = latt_size
 
-    gauge_raw = numpy.frombuffer(
-        binary_data,
-        binary_dtype,
-    ).reshape(Gt * Lt, Gz * Lz, Gy * Ly, Gx * Lx, Nd, Nc,
-              Nc)[gt * Lt:(gt + 1) * Lt, gz * Lz:(gz + 1) * Lz, gy * Ly:(gy + 1) * Ly,
-                  gx * Lx:(gx + 1) * Lx].astype(ndarray_dtype).transpose(4, 0, 1, 2, 3, 5, 6)
+    gauge_raw = (
+        numpy.frombuffer(binary_data, binary_dtype)
+        .reshape(Gt * Lt, Gz * Lz, Gy * Ly, Gx * Lx, Nd, Nc, Nc)[
+            gt * Lt : (gt + 1) * Lt, gz * Lz : (gz + 1) * Lz, gy * Ly : (gy + 1) * Ly, gx * Lx : (gx + 1) * Lx
+        ]
+        .astype(ndarray_dtype)
+        .transpose(4, 0, 1, 2, 3, 5, 6)
+    )
 
     gauge = cb2(gauge_raw, [1, 2, 3, 4])
 
@@ -60,12 +62,14 @@ def readIldgBin(filename: str, dtype: str, latt_size: List[int]):
     Gx, Gy, Gz, Gt = mpi.grid
     gx, gy, gz, gt = mpi.coord
 
-    gauge_raw = numpy.fromfile(
-        filename,
-        dtype,
-    ).reshape(Gt * Lt, Gz * Lz, Gy * Ly, Gx * Lx, Nd, Nc,
-              Nc)[gt * Lt:(gt + 1) * Lt, gz * Lz:(gz + 1) * Lz, gy * Ly:(gy + 1) * Ly,
-                  gx * Lx:(gx + 1) * Lx].astype("<c16").transpose(4, 0, 1, 2, 3, 5, 6)
+    gauge_raw = (
+        numpy.fromfile(filename, dtype)
+        .reshape(Gt * Lt, Gz * Lz, Gy * Ly, Gx * Lx, Nd, Nc, Nc)[
+            gt * Lt : (gt + 1) * Lt, gz * Lz : (gz + 1) * Lz, gy * Ly : (gy + 1) * Ly, gx * Lx : (gx + 1) * Lx
+        ]
+        .astype("<c16")
+        .transpose(4, 0, 1, 2, 3, 5, 6)
+    )
 
     gauge = cb2(gauge_raw, [1, 2, 3, 4])
 
@@ -95,7 +99,7 @@ def gaussGauge(latt_size: List[int], seed: int):
     dslash.gauge_param.use_resident_gauge = 0
     loadGaugeQuda(gauge.data_ptrs, dslash.gauge_param)
     dslash.gauge_param.use_resident_gauge = 1
-    gaussGaugeQuda(seed, 1.0)
+    gaussGaugeQuda(seed, 0.1)
     saveGaugeQuda(gauge.data_ptrs, dslash.gauge_param)
 
     return gauge

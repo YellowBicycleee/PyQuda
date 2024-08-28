@@ -2,14 +2,27 @@ from typing import List
 
 import numpy
 
+from .pointer import Pointers, ndarrayDataPointer
 from .pyquda import (
-    Pointers, ndarrayDataPointer, QudaGaugeParam, QudaInvertParam, QudaMultigridParam, loadCloverQuda, freeCloverQuda,
-    loadGaugeQuda, saveGaugeQuda, updateGaugeFieldQuda, invertQuda, dslashQuda, cloverQuda, projectSU3Quda,
-    momResidentQuda, gaussMomQuda, momActionQuda, computeCloverForceQuda, computeGaugeForceQuda,
-    computeGaugeLoopTraceQuda
+    QudaGaugeParam,
+    QudaInvertParam,
+    QudaMultigridParam,
+    loadCloverQuda,
+    freeCloverQuda,
+    loadGaugeQuda,
+    saveGaugeQuda,
+    updateGaugeFieldQuda,
+    invertQuda,
+    projectSU3Quda,
+    momResidentQuda,
+    gaussMomQuda,
+    momActionQuda,
+    computeCloverForceQuda,
+    computeGaugeForceQuda,
+    computeGaugeLoopTraceQuda,
 )
 from .field import Ns, Nc
-from .enum_quda import (QudaMatPCType, QudaSolutionType, QudaVerbosity, QudaTboundary, QudaReconstructType)
+from .enum_quda import QudaMatPCType, QudaSolutionType, QudaVerbosity, QudaTboundary, QudaReconstructType
 from .core import LatticeGauge, LatticeFermion, getDslash
 
 nullptr = Pointers("void", 0)
@@ -23,7 +36,7 @@ class HMC:
         tol: float,
         maxiter: int,
         clover_coeff: float = 0.0,
-        anti_periodic_t=True
+        anti_periodic_t=True,
     ) -> None:
         self.dslash = getDslash(
             latt_size, mass, tol, maxiter, clover_coeff_t=clover_coeff, anti_periodic_t=anti_periodic_t
@@ -55,12 +68,12 @@ class HMC:
         if self.gauge_param.t_boundary == QudaTboundary.QUDA_ANTI_PERIODIC_T:
             gauge.setAntiPeroidicT()
         self.gauge_param.use_resident_gauge = 0
-        loadGaugeQuda(gauge.data_ptr, self.gauge_param)
+        loadGaugeQuda(gauge.data_ptrs, self.gauge_param)
         self.gauge_param.use_resident_gauge = use_resident_gauge
         gauge.data = gauge_data_bak
 
     def saveGauge(self, gauge: LatticeGauge):
-        saveGaugeQuda(gauge.data_ptr, self.gauge_param)
+        saveGaugeQuda(gauge.data_ptrs, self.gauge_param)
 
     def updateGaugeField(self, dt: float):
         updateGaugeFieldQuda(nullptr, nullptr, dt, False, False, self.gauge_param)
@@ -69,15 +82,31 @@ class HMC:
         self.updateClover()
         invertQuda(x.even_ptr, x.odd_ptr, self.invert_param)
         computeCloverForceQuda(
-            nullptr, dt, ndarrayDataPointer(x.even.reshape(1, -1), True), nullptr,
-            ndarrayDataPointer(numpy.array([1.0], "<f8")), kappa2, ck, 1, 2, nullptr, self.gauge_param,
-            self.invert_param
+            nullptr,
+            dt,
+            ndarrayDataPointer(x.even.reshape(1, -1), True),
+            nullptr,
+            ndarrayDataPointer(numpy.array([1.0], "<f8")),
+            kappa2,
+            ck,
+            1,
+            2,
+            nullptr,
+            self.gauge_param,
+            self.invert_param,
         )
 
     def computeGaugeForce(self, dt, force, lengths, coeffs, num_paths, max_length):
         computeGaugeForceQuda(
-            nullptr, nullptr, ndarrayDataPointer(force), ndarrayDataPointer(lengths), ndarrayDataPointer(coeffs),
-            num_paths, max_length, dt, self.gauge_param
+            nullptr,
+            nullptr,
+            ndarrayDataPointer(force),
+            ndarrayDataPointer(lengths),
+            ndarrayDataPointer(coeffs),
+            num_paths,
+            max_length,
+            dt,
+            self.gauge_param,
         )
 
     def reunitGaugeField(self, ref: LatticeGauge, tol: float):
@@ -87,7 +116,7 @@ class HMC:
         reconstruct = self.gauge_param.reconstruct
         use_resident_gauge = self.gauge_param.use_resident_gauge
 
-        saveGaugeQuda(gauge.data_ptr, self.gauge_param)
+        saveGaugeQuda(gauge.data_ptrs, self.gauge_param)
         if t_boundary == QudaTboundary.QUDA_ANTI_PERIODIC_T:
             gauge.setAntiPeroidicT()
         if anisotropy != 1.0:
@@ -97,10 +126,10 @@ class HMC:
         self.gauge_param.anisotropy = 1.0
         self.gauge_param.reconstruct = QudaReconstructType.QUDA_RECONSTRUCT_NO
         self.gauge_param.use_resident_gauge = 0
-        loadGaugeQuda(gauge.data_ptr, self.gauge_param)
+        loadGaugeQuda(gauge.data_ptrs, self.gauge_param)
         self.gauge_param.use_resident_gauge = use_resident_gauge
         projectSU3Quda(nullptr, tol, self.gauge_param)
-        saveGaugeQuda(gauge.data_ptr, self.gauge_param)
+        saveGaugeQuda(gauge.data_ptrs, self.gauge_param)
         self.gauge_param.t_boundary = t_boundary
         self.gauge_param.anisotropy = anisotropy
         self.gauge_param.reconstruct = reconstruct
@@ -110,7 +139,7 @@ class HMC:
         if anisotropy != 1.0:
             gauge.setAnisotropy(anisotropy)
         self.gauge_param.use_resident_gauge = 0
-        loadGaugeQuda(gauge.data_ptr, self.gauge_param)
+        loadGaugeQuda(gauge.data_ptrs, self.gauge_param)
         self.gauge_param.use_resident_gauge = use_resident_gauge
 
     def loadMom(self, mom: LatticeGauge):
@@ -118,7 +147,7 @@ class HMC:
         return_result_mom = self.gauge_param.return_result_mom
         self.gauge_param.make_resident_mom = 1
         self.gauge_param.return_result_mom = 0
-        momResidentQuda(mom.data_ptr, self.gauge_param)
+        momResidentQuda(mom.data_ptrs, self.gauge_param)
         self.gauge_param.make_resident_mom = make_resident_mom
         self.gauge_param.return_result_mom = return_result_mom
 
@@ -131,8 +160,13 @@ class HMC:
     def actionGauge(self, path, lengths, coeffs, num_paths, max_length) -> float:
         traces = numpy.zeros((num_paths), "<c16")
         computeGaugeLoopTraceQuda(
-            ndarrayDataPointer(traces), ndarrayDataPointer(path), ndarrayDataPointer(lengths),
-            ndarrayDataPointer(coeffs), num_paths, max_length, 1
+            ndarrayDataPointer(traces),
+            ndarrayDataPointer(path),
+            ndarrayDataPointer(lengths),
+            ndarrayDataPointer(coeffs),
+            num_paths,
+            max_length,
+            1,
         )
         return traces.real.sum()
 
