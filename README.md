@@ -67,3 +67,19 @@ popd
 ```
 
 Now you can modify Python files in the project and immediately get the result by running scripts. Adding the root directory to `sys.path` list is needed if you are running scripts from other directories.
+
+## Qcu MRHS Manual
+
+### QUDA
+
+first you should compile quda, and get `libquda.so`
+
+### QCU
+
+then, compile [mrhs_qcu](https://github.com/YellowBicycleee/qcu_mrhs) and get `libqcu.so`
+
+### directory
+
+Put these libs into `PyQuda/lib` directory, then `source env.sh`, then install.
+
+There are some test cases in `PyQuda/tests`
