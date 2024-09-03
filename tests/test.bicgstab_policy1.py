@@ -72,9 +72,11 @@ def test_mpi(my_m_input, warm_flag = False):
 
   print('==============BEGIN=================')
   # allocate my_m_input number of fermions
-  x_mrhs = [LatticeFermion(latt_size, cp.random.randn(Lt, Lz, Ly, Lx, Ns, Nc * 2).view(cp.complex128)) \
-            for _ in range(my_m_input)]
+  # x_mrhs = [LatticeFermion(latt_size, cp.random.randn(Lt, Lz, Ly, Lx, Ns, Nc * 2).view(cp.complex128)) \
+  #           for _ in range(my_m_input)]
 
+  x_mrhs = [LatticeFermion(latt_size, cp.ones((Lt, Lz, Ly, Lx, Ns, Nc * 2)).view(cp.complex128)) \
+            for _ in range(my_m_input)]
   b_mrhs = [LatticeFermion(latt_size) for _ in range(my_m_input)]
   for i in range(my_m_input):
     quda.MatQuda(b_mrhs[i].even_ptr, x_mrhs[i].even_ptr, quda_dslash.invert_param)
@@ -83,6 +85,8 @@ def test_mpi(my_m_input, warm_flag = False):
   quda_x_mrhs = [LatticeFermion(latt_size) for _ in range(my_m_input)]
   # qcu_result
   qcu_x_mrhs  = [LatticeFermion(latt_size) for _ in range(my_m_input)]
+
+
 
   quda_dslash.loadGauge(U)
   cp.cuda.runtime.deviceSynchronize()
@@ -94,6 +98,75 @@ def test_mpi(my_m_input, warm_flag = False):
   cp.cuda.runtime.deviceSynchronize()
   t2 = perf_counter()
   quda_inverter_time = t2 - t1
+
+  # print('debug info, new b')
+  # test 
+  # new b = b_{o} + kappa D_{oe} b_{e}
+  b = LatticeFermion(latt_size)
+  temp = LatticeFermion(latt_size)
+  quda.dslashQuda(b.odd_ptr, b_mrhs[0].even_ptr, quda_dslash.invert_param, QudaParity.QUDA_ODD_PARITY)
+  new_b = copy.copy(b_mrhs[0].data[1] + 0.125 * b.data[1])
+
+  r0 = copy.copy(new_b)
+
+  b.data[0][:] = r0
+  r0_norm = cp.linalg.norm(r0)
+  r1      = copy.copy(r0)
+  p       = copy.copy(r0)
+  x_old   = cp.zeros_like(r0)
+
+  for i in range (max_iteration) :
+    # rho_j = <r_i , r0'>
+    rho_j = cp.dot(r0.reshape(1, -1).conj(), r1.reshape(-1, 1))
+    # v_i = A p = kappa^2 D_{oe} D_{eo} p
+    b.data[0][:] = p
+    quda.dslashQuda(temp.even_ptr, b.even_ptr, quda_dslash.invert_param, QudaParity.QUDA_EVEN_PARITY)
+    quda.dslashQuda(b.odd_ptr, temp.even_ptr, quda_dslash.invert_param, QudaParity.QUDA_ODD_PARITY)
+    cp.cuda.runtime.deviceSynchronize()
+    b.data[1][:] = b.data[0] - 0.125 * 0.125 * b.data[1]
+    vi = copy.copy(b.data[1])
+    vi_r0_prod = cp.dot(r0.reshape(1, -1).conj(), vi.reshape(-1, 1))
+    alpha = rho_j / vi_r0_prod
+    s_j = r1 - alpha * vi
+
+    # t = s_j kappa^2 D_{oe} D_{eo} s_j
+    b.data[0][:] = s_j
+    quda.dslashQuda(temp.even_ptr, b.even_ptr, quda_dslash.invert_param, QudaParity.QUDA_EVEN_PARITY)
+    quda.dslashQuda(b.odd_ptr, temp.even_ptr, quda_dslash.invert_param, QudaParity.QUDA_ODD_PARITY)
+    b.data[1][:] = b.data[0] - 0.125 * 0.125 * b.data[1]
+    t = copy.copy(b.data[1])
+  
+    t_sj_prod = cp.dot(t.reshape(1, -1).conj(), s_j.reshape(-1, 1))
+    t_t_prod = cp.dot(t.reshape(1, -1).conj(), t.reshape(-1, 1))
+    omega = t_sj_prod / t_t_prod
+    # print(f'omega = {omega}, t_sj_prod = {t_sj_prod}, t_t_prod = {t_t_prod}, norm <s, s> = {cp.linalg.norm(s_j)}')
+    
+    x_old[:] = x_old + alpha * p + omega * s_j
+    r1[:] = s_j - omega * t
+
+    print(f'iteration {i}, norm(r1) = {cp.linalg.norm(r1)}, norm_b = {r0_norm}, diff = {cp.linalg.norm(r1) / r0_norm}')
+    if (cp.linalg.norm(r1) / r0_norm < max_prec):
+      print(f'converged at iteration {i}')
+      print(f'my res = {x_old[0, 0, 0, 0]}')
+      break
+    rho_j1 = cp.dot(r0.reshape(1, -1).conj(), r1.reshape(-1, 1))
+    beta = (alpha / omega) * (rho_j1 / rho_j)
+    ppp = p - omega * vi
+    p_new = r1 + beta * ppp
+
+    p[:] = p_new
+    # print(f'round {i}, alpha = {alpha}, omega = {omega}, beta = {beta}')
+
+    # print(f'p_new = {p_new[0, 0, 0, 0]}')
+  b.data[1][:] = x_old
+  # D_{eo} x_o
+  quda.dslashQuda(temp.even_ptr, b.odd_ptr, quda_dslash.invert_param, QudaParity.QUDA_EVEN_PARITY)
+  temp_res = copy.copy(temp.data[0])
+  # print(f'temp_res = {temp_res[0, 0, 0, 0]}')
+  # even res : b_{e} + kappa D_{oe} x_o
+  origin_be = copy.copy(b_mrhs[0].data[0])
+  even_res = origin_be + 0.125 * temp_res
+  print(f'even_res = {even_res[0, 0, 0, 0]}')
 
   # check if quda is correct
   quda_b_mrhs = [LatticeFermion(latt_size) for _ in range(my_m_input)]
