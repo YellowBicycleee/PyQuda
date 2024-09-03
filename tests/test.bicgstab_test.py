@@ -66,15 +66,16 @@ def draw_table_mrhs (x, y1, y1_label, y2, y2_label, table_name, my_dslash_prec) 
 
 def test_mpi(my_m_input, warm_flag = False):
   from pyquda.mpi import rank
+  from pyquda.enum_quda import QudaInverterType
   # get quda_dslash operator
   quda_dslash = core.getDslash(latt_size, mass, 1e-9, 1000, xi_0, nu, coeff_t, coeff_r, multigrid=False, anti_periodic_t=False)
+  quda_dslash.invert_param.inv_type = QudaInverterType.QUDA_BICGSTAB_INVERTER
   U = gauge_utils.gaussGauge(latt_size, 0)
 
   print('==============BEGIN=================')
   # allocate my_m_input number of fermions
   # x_mrhs = [LatticeFermion(latt_size, cp.random.randn(Lt, Lz, Ly, Lx, Ns, Nc * 2).view(cp.complex128)) \
   #           for _ in range(my_m_input)]
-
   x_mrhs = [LatticeFermion(latt_size, cp.ones((Lt, Lz, Ly, Lx, Ns, Nc * 2)).view(cp.complex128)) \
             for _ in range(my_m_input)]
   b_mrhs = [LatticeFermion(latt_size) for _ in range(my_m_input)]
@@ -85,8 +86,6 @@ def test_mpi(my_m_input, warm_flag = False):
   quda_x_mrhs = [LatticeFermion(latt_size) for _ in range(my_m_input)]
   # qcu_result
   qcu_x_mrhs  = [LatticeFermion(latt_size) for _ in range(my_m_input)]
-
-
 
   quda_dslash.loadGauge(U)
   cp.cuda.runtime.deviceSynchronize()
@@ -105,60 +104,78 @@ def test_mpi(my_m_input, warm_flag = False):
   b = LatticeFermion(latt_size)
   temp = LatticeFermion(latt_size)
   quda.dslashQuda(b.odd_ptr, b_mrhs[0].even_ptr, quda_dslash.invert_param, QudaParity.QUDA_ODD_PARITY)
+  cp.cuda.runtime.deviceSynchronize()
+  # generate new b or (r0)
   new_b = copy.copy(b_mrhs[0].data[1] + 0.125 * b.data[1])
 
-  r0 = copy.copy(new_b)
+  # x_i = cp.random.randn(Lt, Lz, Ly, Lx // 2, Ns, Nc * 2).view(cp.complex128)
+  x_i = cp.zeros_like(new_b)
 
-  b.data[0][:] = r0
-  r0_norm = cp.linalg.norm(r0)
-  r1      = copy.copy(r0)
-  p       = copy.copy(r0)
-  x_old   = cp.zeros_like(r0)
+  # r0 = new_b - A x_i
+  b.data[0][:] = x_i
+  quda.dslashQuda(temp.even_ptr, b.even_ptr, quda_dslash.invert_param, QudaParity.QUDA_EVEN_PARITY)
+  quda.dslashQuda(b.odd_ptr, temp.even_ptr, quda_dslash.invert_param, QudaParity.QUDA_ODD_PARITY)
+  b.data[1][:] = b.data[0] - 0.125 * 0.125 * b.data[1]
+  r0_head = new_b - b.data[1]
 
+  # b.data[0][:] = r0_head
+  new_b_norm = cp.linalg.norm(new_b)
+
+  r_i = copy.copy(r0_head)
+  p_i = cp.zeros_like(r0_head)
+  v_i = cp.zeros_like(r0_head)
+  # x_i = cp.zeros_like(r0_head)
+
+  rho_i = alpha = omega_i = 1
+  # r0 = new_b 
   for i in range (max_iteration) :
-    # rho_j = <r_i , r0'>
-    rho_j = cp.dot(r0.reshape(1, -1).conj(), r1.reshape(-1, 1))
-    # v_i = A p = kappa^2 D_{oe} D_{eo} p
-    b.data[0][:] = p
+
+    rho_new = cp.dot(r0_head.reshape(1, -1).conj(), r_i.reshape(-1, 1))
+    beta = (rho_new / rho_i) * (alpha / omega_i)
+    print(f'round {i}, alpha = {alpha}, omega = {omega_i}, beta = {beta}')
+    p_new = r_i + beta * (p_i - omega_i * v_i)
+    
+    # vi = Ap_i
+    b.data[0][:] = p_new
     quda.dslashQuda(temp.even_ptr, b.even_ptr, quda_dslash.invert_param, QudaParity.QUDA_EVEN_PARITY)
     quda.dslashQuda(b.odd_ptr, temp.even_ptr, quda_dslash.invert_param, QudaParity.QUDA_ODD_PARITY)
     cp.cuda.runtime.deviceSynchronize()
     b.data[1][:] = b.data[0] - 0.125 * 0.125 * b.data[1]
-    vi = copy.copy(b.data[1])
-    vi_r0_prod = cp.dot(r0.reshape(1, -1).conj(), vi.reshape(-1, 1))
-    alpha = rho_j / vi_r0_prod
-    s_j = r1 - alpha * vi
+    v_new = copy.copy(b.data[1])
 
-    # t = s_j kappa^2 D_{oe} D_{eo} s_j
-    b.data[0][:] = s_j
+    alpha = rho_new / cp.dot(r0_head.reshape(1, -1).conj(), v_new.reshape(-1, 1))
+    
+    s = r_i - alpha * v_new
+    # t = As
+    b.data[0][:] = s
     quda.dslashQuda(temp.even_ptr, b.even_ptr, quda_dslash.invert_param, QudaParity.QUDA_EVEN_PARITY)
     quda.dslashQuda(b.odd_ptr, temp.even_ptr, quda_dslash.invert_param, QudaParity.QUDA_ODD_PARITY)
     b.data[1][:] = b.data[0] - 0.125 * 0.125 * b.data[1]
     t = copy.copy(b.data[1])
-  
-    t_sj_prod = cp.dot(t.reshape(1, -1).conj(), s_j.reshape(-1, 1))
-    t_t_prod = cp.dot(t.reshape(1, -1).conj(), t.reshape(-1, 1))
-    omega = t_sj_prod / t_t_prod
-    # print(f'omega = {omega}, t_sj_prod = {t_sj_prod}, t_t_prod = {t_t_prod}, norm <s, s> = {cp.linalg.norm(s_j)}')
-    
-    x_old[:] = x_old + alpha * p + omega * s_j
-    r1[:] = s_j - omega * t
+    omega_new = cp.dot(t.reshape(1, -1).conj(), s.reshape(-1, 1)) / cp.dot(t.reshape(1, -1).conj(), t.reshape(-1, 1))
+    # print(f'omega_new = {omega_new}. norm <t, s> = {cp.dot(t.reshape(1, -1).conj(), s.reshape(-1, 1))}, norm <t, t> = {cp.dot(t.reshape(1, -1).conj(), t.reshape(-1, 1))}, norm <s, s> = {cp.dot(s.reshape(1, -1).conj(), s.reshape(-1, 1))}')
 
-    # print(f'iteration {i}, norm(r1) = {cp.linalg.norm(r1)}, norm_b = {r0_norm}, diff = {cp.linalg.norm(r1) / r0_norm}')
-    if (cp.linalg.norm(r1) / r0_norm < max_prec):
+    # x_new = x_i + alpha * p_new + omega_new * s
+    x_i = x_i + alpha * p_new + omega_new * s
+    r_new = s - omega_new * t
+
+    print(f'iteration {i}, norm(r_new) = {cp.linalg.norm(r_new)}, norm_b = {new_b_norm}, diff = {cp.linalg.norm(r_new) / new_b_norm}')
+    if (cp.linalg.norm(r_new) / new_b_norm < max_prec):
       print(f'converged at iteration {i}')
-      print(f'my res = {x_old[0, 0, 0, 0]}')
+      print(f'my res = {x_i[0, 0, 0, 0]}')
       break
-    rho_j1 = cp.dot(r0.reshape(1, -1).conj(), r1.reshape(-1, 1))
-    beta = (alpha / omega) * (rho_j1 / rho_j)
-    ppp = p - omega * vi
-    p_new = r1 + beta * ppp
 
-    p[:] = p_new
-    print(f'round {i}, alpha = {alpha}, omega = {omega}, beta = {beta}')
+    r_i[:] = r_new
+    p_i[:] = p_new
+    v_i[:] = v_new
 
-    # print(f'p_new = {p_new[0, 0, 0, 0]}')
-  b.data[1][:] = x_old
+    # x_i[:] = x_new
+
+    rho_i = rho_new
+    omega_i = omega_new
+    
+
+  b.data[1][:] = x_i
   # D_{eo} x_o
   quda.dslashQuda(temp.even_ptr, b.odd_ptr, quda_dslash.invert_param, QudaParity.QUDA_EVEN_PARITY)
   temp_res = copy.copy(temp.data[0])
