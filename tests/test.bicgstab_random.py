@@ -76,11 +76,11 @@ def test_mpi(my_m_input, warm_flag = False):
 
   print('==============BEGIN=================')
   # allocate my_m_input number of fermions
-  x_mrhs = [LatticeFermion(latt_size, cp.random.randn(Lt, Lz, Ly, Lx, Ns, Nc * 2).view(cp.complex128)) \
+  b_mrhs = [LatticeFermion(latt_size, cp.random.randn(Lt, Lz, Ly, Lx, Ns, Nc * 2).view(cp.complex128)) \
             for _ in range(my_m_input)]
-  b_mrhs = [LatticeFermion(latt_size) for _ in range(my_m_input)]
-  for i in range(my_m_input):
-    quda.MatQuda(b_mrhs[i].even_ptr, x_mrhs[i].even_ptr, quda_dslash.invert_param)
+  # b_mrhs = [LatticeFermion(latt_size) for _ in range(my_m_input)]
+  # for i in range(my_m_input):
+  #   quda.MatQuda(b_mrhs[i].even_ptr, x_mrhs[i].even_ptr, quda_dslash.invert_param)
 
   # quda_result
   quda_x_mrhs = [LatticeFermion(latt_size) for _ in range(my_m_input)]
@@ -105,8 +105,6 @@ def test_mpi(my_m_input, warm_flag = False):
     quda.MatQuda(quda_b_mrhs[i].even_ptr, quda_x_mrhs[i].even_ptr, quda_dslash.invert_param)
     print(f'rank {rank}, rhs {i} difference between quda_x_mrhs and x_mrhs: \
           , {cp.linalg.norm(b_mrhs[i].data - quda_b_mrhs[i].data) / cp.linalg.norm(b_mrhs[i].data)}')
-    # diff_b_b_groundtruth += cp.linalg.norm(quda_x_mrhs[i].data - x_mrhs[i].data) / cp.linalg.norm(x_mrhs[i].data)
-  # print(f'rank {rank}, average difference between quda_x_mrhs and x_mrhs: , {diff_b_b_groundtruth / my_m_input}')
 
   #my code 
   qcu.loadQcuGauge(U.data_ptr, 2)		# 2---double 1--float 0---half
@@ -124,42 +122,14 @@ def test_mpi(my_m_input, warm_flag = False):
   if (not warm_flag):
     print(f'Quda solver: {quda_inverter_time}sec')
     print(f'Qcu dslash:  {qcu_inverter_time} sec')
-
-  # check the result
-  # print(f'quda_x_even = {quda_x_mrhs[0].data[0, 0, 0, 0, 0]}')
-  # print(f'quda_x_odd = {quda_x_mrhs[0].data[1, 0, 0, 0, 0]}')
-  # print(f'qcu_x_even = {qcu_x_mrhs[0].data[0, 0, 0, 0, 0]}')
-  # print(f'qcu_x_odd = {qcu_x_mrhs[0].data[1, 0, 0, 0, 0]}')
-  # print(f'groundtruth = {x_mrhs[0].data[0, 0, 0, 0, 0]}')
   cp.cuda.runtime.deviceSynchronize()
   print(f'rank {rank}, input============================================')
-  # for i in range(my_m_input):
-  #   print(f'b[i][0] = {b_mrhs[i].data[0, 0, 0, 0, 0]}')
-  # print(f'=============================================================')
-  cp.cuda.runtime.deviceSynchronize()
-  diff_b_b_groundtruth = 0
   
   for i in range(my_m_input):
     quda.MatQuda(qcu_b_mrhs[i].even_ptr, qcu_x_mrhs[i].even_ptr, quda_dslash.invert_param)
     print(f'rank {rank}, rhs {i} difference between qcu_x_mrhs and x_mrhs: \
           , {cp.linalg.norm(b_mrhs[i].data - qcu_b_mrhs[i].data) / cp.linalg.norm(b_mrhs[i].data)}')
 
-    # diff_b_b_groundtruth += cp.linalg.norm(qcu_x_mrhs[i].data - x_mrhs[i].data) / cp.linalg.norm(x_mrhs[i].data)
-    # print(f'rank {rank}, even qcu_x_mrhs = {qcu_x_mrhs[i].data[0, 0, 0, 0, 0]}')
-    # print(f'rank {rank}, odd qcu_x_mrhs = {qcu_x_mrhs[i].data[1, 0, 0, 0, 0]}')
-  
-  # print ('=====================')
-  # for i in range(my_m_input):
-  #   print(f'rank {rank}, even b_mrhs = {b_mrhs[i].data[0, 0, 0, 0, 0]}')
-  #   print(f'rank {rank}, odd b_mrhs = {b_mrhs[i].data[1, 0, 0, 0, 0]}')
-  # for i in range(my_m_input):
-  #   diff_b_b_groundtruth += cp.linalg.norm(qcu_x_mrhs[i].data - x_mrhs[i].data) / cp.linalg.norm(x_mrhs[i].data)
-  #   print(f'rank {rank}, even qcu_x_mrhs = {qcu_x_mrhs[i].data[0, 0, 0, 0, 0]}')
-  #   print(f'rank {rank}, odd qcu_x_mrhs = {qcu_x_mrhs[i].data[1, 0, 0, 0, 0]}')
-    # print(f'rank {rank}, even x_mrhs = {x_mrhs[i].data[0, 0, 0, 0, 0]}')
-    # print(f'rank {rank}, odd x_mrhs = {x_mrhs[i].data[1, 0, 0, 0, 0]}')
-  # print(f'rank {rank}, average difference between qcu_x_mrhs and x_mrhs: , {diff_b_b_groundtruth / my_m_input}')
-  # print(f'self diff {cp.linalg.norm(b_mrhs[i].data - b_mrhs[i].data) / cp.linalg.norm(b_mrhs[i].data)}')
   cp.cuda.runtime.deviceSynchronize()
 
   print('==============END=================')
