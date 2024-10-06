@@ -13,3 +13,4 @@ script
 logs
 *.png
 out*
+*.ncu-rep
