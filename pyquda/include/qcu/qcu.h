@@ -21,8 +21,8 @@ void qcuInvert(int max_iteration, double p_max_prec);
 void finalizeQcu();
 
 // 奇偶预处理接口
-void eo_precondition (void* prec_gauge, void* non_prec_gauge, int precision);
-void reverse_eo_precondition(void* non_prec_gauge, void* prec_gauge, int precision);
+void gauge_eo_precondition (void* prec_gauge, void* non_prec_gauge, int precision);
+void gauge_reverse_eo_precondition(void* non_prec_gauge, void* prec_gauge, int precision);
 
 // 文件读取接口
 // void read_gauge_from_file_stupid (void *gauge, int precision); // 文件路径写死的文件读取

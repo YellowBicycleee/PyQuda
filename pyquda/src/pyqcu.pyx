@@ -69,7 +69,7 @@ def start_dslash(int parity, int daggerFlag):
 def qcuInvert(int max_iteration, double p_max_prec):
     qcu.qcuInvert(max_iteration, p_max_prec)
 
-def eo_precondition(Pointer prec_gauge, Pointer non_prec_gauge, int precision):
-    qcu.eo_precondition(prec_gauge.ptr, non_prec_gauge.ptr, precision)
-def reverse_eo_precondition(Pointer non_prec_gauge, Pointer prec_gauge, int precision):
-    qcu.reverse_eo_precondition(non_prec_gauge.ptr, prec_gauge.ptr, precision)
+def gauge_eo_precondition(Pointer prec_gauge, Pointer non_prec_gauge, int precision):
+    qcu.gauge_eo_precondition(prec_gauge.ptr, non_prec_gauge.ptr, precision)
+def gauge_reverse_eo_precondition(Pointer non_prec_gauge, Pointer prec_gauge, int precision):
+    qcu.gauge_reverse_eo_precondition(non_prec_gauge.ptr, prec_gauge.ptr, precision)
