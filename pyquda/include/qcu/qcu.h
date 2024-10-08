@@ -25,8 +25,7 @@ void gauge_eo_precondition (void* prec_gauge, void* non_prec_gauge, int precisio
 void gauge_reverse_eo_precondition(void* non_prec_gauge, void* prec_gauge, int precision);
 
 // 文件读取接口
-// void read_gauge_from_file_stupid (void *gauge, int precision); // 文件路径写死的文件读取
-// void read_gauge_from_file (void* gauge, const char* file_path);
+void read_gauge_from_file (void* gauge, const char* file_path_prefix);
 #ifdef __cplusplus
 }
 #endif

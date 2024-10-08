@@ -73,3 +73,5 @@ def gauge_eo_precondition(Pointer prec_gauge, Pointer non_prec_gauge, int precis
     qcu.gauge_eo_precondition(prec_gauge.ptr, non_prec_gauge.ptr, precision)
 def gauge_reverse_eo_precondition(Pointer non_prec_gauge, Pointer prec_gauge, int precision):
     qcu.gauge_reverse_eo_precondition(non_prec_gauge.ptr, prec_gauge.ptr, precision)
+def read_gauge_from_file (Pointer gauge, bytes binary_file_path_prefix):
+    qcu.read_gauge_from_file (gauge.ptr, binary_file_path_prefix);
