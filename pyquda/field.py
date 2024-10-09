@@ -143,11 +143,15 @@ class LatticeField:
 
 
 class LatticeGauge(LatticeField):
-    def __init__(self, latt_size: List[int], value=None, t_boundary=True) -> None:
+    def __init__(self, latt_size: List[int], value=None, t_boundary=True, selfColor=3) -> None:
         Lx, Ly, Lz, Lt = latt_size
         self.latt_size = latt_size
         if value is None:
-            self.data = newLatticeFieldData(latt_size, "Gauge")
+            self.data = newLatticeFieldData(latt_size, "Gauge", selfColor)
+            # if selfColor == 3:
+            #     self.data = newLatticeFieldData(latt_size, "Gauge")
+            # else:
+            #     self.data = newLatticeFieldData(latt_size, "GaugeSUN", selfColor)
         else:
             self.data = value.reshape(Nd, 2, Lt, Lz, Ly, Lx // 2, Nc, Nc)
         self.t_boundary = t_boundary
