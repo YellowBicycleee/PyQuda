@@ -63,19 +63,22 @@ def cb2(data: numpy.ndarray, axes: List[int], dtype=None):
     return data_cb2.reshape(*shape[: axes[0]], 2, Lt, Lz, Ly, Lx // 2, *shape[axes[-1] + 1 :])
 
 
-def newLatticeFieldData(latt_size: List[int], dtype: str):
+def newLatticeFieldData(latt_size: List[int], dtype: str, selfColor=3):
     Lx, Ly, Lz, Lt = latt_size
     if CUDA_BACKEND == "cupy":
         import cupy
 
         if dtype.capitalize() == "Gauge":
-            ret = cupy.zeros((Nd, 2, Lt, Lz, Ly, Lx // 2, Nc, Nc), "<c16")
-            ret[:] = cupy.identity(Nc)
+            # ret = cupy.zeros((Nd, 2, Lt, Lz, Ly, Lx // 2, Nc, Nc), "<c16")
+            ret = cupy.zeros((Nd, 2, Lt, Lz, Ly, Lx // 2, selfColor, selfColor), "<c16")
+            # ret[:] = cupy.identity(Nc)
+            ret[:] = cupy.identity(selfColor)
             return ret
         elif dtype.capitalize() == "Colorvector":
             return cupy.zeros((2, Lt, Lz, Ly, Lx // 2, Nc), "<c16")
         elif dtype.capitalize() == "Fermion":
-            return cupy.zeros((2, Lt, Lz, Ly, Lx // 2, Ns, Nc), "<c16")
+            # return cupy.zeros((2, Lt, Lz, Ly, Lx // 2, Ns, Nc), "<c16")
+            return cupy.zeros((2, Lt, Lz, Ly, Lx // 2, Ns, selfColor), "<c16")
         elif dtype.capitalize() == "Propagator":
             return cupy.zeros((2, Lt, Lz, Ly, Lx // 2, Ns, Ns, Nc, Nc), "<c16")
     elif CUDA_BACKEND == "torch":
@@ -153,7 +156,8 @@ class LatticeGauge(LatticeField):
             # else:
             #     self.data = newLatticeFieldData(latt_size, "GaugeSUN", selfColor)
         else:
-            self.data = value.reshape(Nd, 2, Lt, Lz, Ly, Lx // 2, Nc, Nc)
+            # self.data = value.reshape(Nd, 2, Lt, Lz, Ly, Lx // 2, Nc, Nc)
+            self.data = value.reshape(Nd, 2, Lt, Lz, Ly, Lx // 2, selfColor, selfColor)
         self.t_boundary = t_boundary
 
     def copy(self):
@@ -225,13 +229,14 @@ class LatticeColorVector(LatticeField):
 
 
 class LatticeFermion(LatticeField):
-    def __init__(self, latt_size: List[int], value=None) -> None:
+    def __init__(self, latt_size: List[int], selfColor=3, value=None) -> None:
         Lx, Ly, Lz, Lt = latt_size
         self.latt_size = latt_size
         if value is None:
-            self.data = newLatticeFieldData(latt_size, "Fermion")
+            self.data = newLatticeFieldData(latt_size, "Fermion", selfColor)
         else:
-            self.data = value.reshape(2, Lt, Lz, Ly, Lx // 2, Ns, Nc)
+            # self.data = value.reshape(2, Lt, Lz, Ly, Lx // 2, Ns, Nc)
+            self.data = value.reshape(2, Lt, Lz, Ly, Lx // 2, Ns, selfColor)
 
     @property
     def even(self):
