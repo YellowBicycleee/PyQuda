@@ -17,6 +17,7 @@ void pushBackFermions(void *fermionOut, void *fermionIn);
 void loadQcuGauge(void *gauge, int floatPrecision);  // double precision
 void getDslash(int dslashType, double mass);  // dslash precision
 void start_dslash(int parity, int daggerFlag);
+void mat_Qcu(int daggerFlag);
 void qcuInvert(int max_iteration, double p_max_prec);
 void finalizeQcu();
 
