@@ -9,6 +9,7 @@ cdef extern from "qcu.h":
     void getDslash(int dslashType, double mass)
     void finalizeQcu()
     void start_dslash(int parity, int daggerFlag)
+    void mat_Qcu(int daggerFlag)
     void qcuInvert(int max_iteration, double p_max_prec)
     
     void gauge_eo_precondition (void* prec_gauge, void* non_prec_gauge, int precision)

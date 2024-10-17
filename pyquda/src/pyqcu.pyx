@@ -65,6 +65,8 @@ def finalizeQcu():
     # void finalizeQcu()
 def start_dslash(int parity, int daggerFlag):
     qcu.start_dslash(parity, daggerFlag)
+def mat_Qcu(int daggerFlag):
+    qcu.mat_Qcu(daggerFlag)
 
 def qcuInvert(int max_iteration, double p_max_prec):
     qcu.qcuInvert(max_iteration, p_max_prec)
