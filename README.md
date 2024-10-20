@@ -83,3 +83,5 @@ then, compile [mrhs_qcu](https://github.com/YellowBicycleee/qcu_mrhs) and get `l
 Put these libs into `PyQuda/lib` directory, then `source env.sh`, then install.
 
 There are some test cases in `PyQuda/tests`
+
+TODO
