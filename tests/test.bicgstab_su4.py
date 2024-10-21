@@ -52,15 +52,15 @@ precision_table = ['half', 'float', 'double']
 max_iteration = 1000
 max_prec = 1e-9
 
-Nc = 3
+Nc = 4
 
 def test_mpi(round, my_m_input, warm_flag = False):
   from pyquda.mpi import comm, rank, size, grid, coord, gpuid
-  x_mrhs = [LatticeFermion(latt_size, 3, cp.random.randn(Lt, Lz, Ly, Lx, Ns, Nc * 2).view(cp.complex128)) \
+  x_mrhs = [LatticeFermion(latt_size, Nc, cp.random.randn(Lt, Lz, Ly, Lx, Ns, Nc * 2).view(cp.complex128)) \
             for i in range(my_m_input)]
 
-  qcu_x_mrhs = [LatticeFermion(latt_size, 3) for i in range(my_m_input)]
-  qcu_b_mrhs = [LatticeFermion(latt_size, 3) for i in range(my_m_input)]
+  qcu_x_mrhs = [LatticeFermion(latt_size, Nc) for i in range(my_m_input)]
+  qcu_b_mrhs = [LatticeFermion(latt_size, Nc) for i in range(my_m_input)]
 
   if Nc == 3:
     U = gauge_utils.gaussGauge(latt_size, 0)
@@ -121,7 +121,7 @@ def test_dslash(my_n_color, my_m_input, input_prec, dslash_prec, quda_average_ti
 
 if __name__ == '__main__' :
   max_input = 8
-  my_n_color = 3
+  my_n_color = Nc
 
   my_input_prec  = double_prec
   my_dslash_prec = double_prec
