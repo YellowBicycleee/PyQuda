@@ -52,6 +52,7 @@ precision_table = ['half', 'float', 'double']
 max_iteration = 1000
 max_prec = 1e-9
 
+Nc = 3
 def draw_table_mrhs (x, y1, y1_label, y2, y2_label, table_name, my_dslash_prec) :
   plt.clf()
   plt.plot(x, y1, label=y1_label, marker = 'o')
@@ -68,7 +69,7 @@ def test_mpi(my_m_input, warm_flag = False):
   from pyquda.mpi import rank
   from pyquda.enum_quda import QudaInverterType
   # get quda_dslash operator
-  quda_dslash = core.getDslash(latt_size, mass, max_prec, 1000, xi_0, nu, coeff_t, coeff_r, multigrid=False, anti_periodic_t=False)
+  quda_dslash = core.getDslash(latt_size, mass, 1e-9, 1000, xi_0, nu, coeff_t, coeff_r, multigrid=False, anti_periodic_t=False)
   quda_dslash.invert_param.inv_type = QudaInverterType.QUDA_BICGSTAB_INVERTER
   # quda_dslash.invert_param.chrono_precision = max_prec
   
@@ -76,9 +77,9 @@ def test_mpi(my_m_input, warm_flag = False):
 
   print('==============BEGIN=================')
   # allocate my_m_input number of fermions
-  x_mrhs = [LatticeFermion(latt_size, cp.random.randn(Lt, Lz, Ly, Lx, Ns, Nc * 2).view(cp.complex128)) \
+  x_mrhs = [LatticeFermion(latt_size, Nc, cp.random.randn(Lt, Lz, Ly, Lx, Ns, Nc * 2).view(cp.complex128)) \
             for _ in range(my_m_input)]
-  b_mrhs = [LatticeFermion(latt_size) for _ in range(my_m_input)]
+  b_mrhs = [LatticeFermion(latt_size, Nc) for _ in range(my_m_input)]
   for i in range(my_m_input):
     quda.MatQuda(b_mrhs[i].even_ptr, x_mrhs[i].even_ptr, quda_dslash.invert_param)
 

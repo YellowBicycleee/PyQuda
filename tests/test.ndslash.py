@@ -52,11 +52,11 @@ precision_table = ['half', 'float', 'double']
 
 def test_mpi(round, my_m_input, warm_flag = False):
   from pyquda.mpi import comm, rank, size, grid, coord, gpuid
-  p_mrhs = [LatticeFermion(latt_size, cp.random.randn(Lt, Lz, Ly, Lx, Ns, Nc * 2).view(cp.complex128)) \
+  p_mrhs = [LatticeFermion(latt_size, Nc, cp.random.randn(Lt, Lz, Ly, Lx, Ns, Nc * 2).view(cp.complex128)) \
             for i in range(my_m_input)]
 
-  quda_Mp_mrhs = [LatticeFermion(latt_size) for i in range(my_m_input)]
-  qcu_Mp_mrhs = [LatticeFermion(latt_size) for i in range(my_m_input)]
+  quda_Mp_mrhs = [LatticeFermion(latt_size, Nc) for i in range(my_m_input)]
+  qcu_Mp_mrhs = [LatticeFermion(latt_size, Nc) for i in range(my_m_input)]
 
   dslash = core.getDslash(latt_size, mass, 1e-9, 1000, xi_0, nu, coeff_t, coeff_r, multigrid=False, anti_periodic_t=False)
   U = gauge_utils.gaussGauge(latt_size, 0)
