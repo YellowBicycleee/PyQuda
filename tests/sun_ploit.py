@@ -34,12 +34,12 @@ def draw_table2 (x, x_label, y, y_label, color, table_name) :
         plt.xlabel(f'color = {color[i]}')
     
     # draw ref data 参考曲线
-    ref_x1_arr = np.arange(4, 10, 0.1)
+    ref_x1_arr = np.arange(2, 10, 0.1)
     ref_y1_arr = ref_y1(ref_x1_arr)
     ref_y1_label = '1 / (Nc * g^2)'
     plt.plot(ref_x1_arr, ref_y1_arr, label=f'{ref_y1_label}', linestyle = '--', color = 'brown')
 
-    ref_x2_arr = np.arange(0.1, 3, 0.1)
+    ref_x2_arr = np.arange(0.1, 5, 0.1)
     ref_y2_arr = ref_y2(ref_x2_arr)
     ref_y2_label = '1 - 2/15 * (Nc * g^2)'
     plt.plot(ref_x2_arr, ref_y2_arr, label=f'{ref_y2_label}', linestyle = '--', color = 'blue')
