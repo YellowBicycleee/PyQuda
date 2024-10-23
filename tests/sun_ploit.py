@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 def draw_table_mrhs (x, x_label, y, y_label, color, table_name) :
-    batch_num = y.shape[0]
+    batch_num = color.size
     plt.clf()
     for i in range(batch_num):
         plt.plot(x[i], y[i], label=f'Nc = {color[i][0]}', marker = 'o')
@@ -11,8 +11,8 @@ def draw_table_mrhs (x, x_label, y, y_label, color, table_name) :
     plt.ylabel(f'{y_label}')
     plt.ylim(0, 1)    # y 坐标限制在 0 到 1
     plt.legend()
-    plt.show()
     plt.savefig(table_name)
+    plt.show()
 
 if __name__ == '__main__' :
     y_label = 'plaq'
@@ -67,5 +67,5 @@ if __name__ == '__main__' :
     print(f'x1 = \n{x1}')
     print(f'x2 = \n{x2}')
 
-    draw_table_mrhs(x1, x1_label, y, y_label, Nc, 'plaq ~ g^2')
-    draw_table_mrhs(x2, x2_label, y, y_label, Nc, 'plaq ~ Nc g^2')
+    draw_table_mrhs(x1, x1_label, y, y_label, Nc, table_name='plaq ~ g^2')
+    draw_table_mrhs(x2, x2_label, y, y_label, Nc, table_name='plaq ~ Nc g^2')
