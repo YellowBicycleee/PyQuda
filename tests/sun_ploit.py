@@ -16,7 +16,8 @@ def draw_table1 (x, x_label, y, y_label, color, table_name) :
     plt.ylabel(f'{y_label}')
     
     plt.legend()
-    plt.savefig(table_name)
+    # plt.savefig(table_name)
+    plt.savefig('g_square')
     plt.show()
 
 # x = Nc * g^2
@@ -50,7 +51,8 @@ def draw_table2 (x, x_label, y, y_label, color, table_name) :
     plt.ylabel(f'{y_label}')
     
     plt.legend()
-    plt.savefig(table_name)
+    # plt.savefig(table_name)
+    plt.savefig('Nc_g_square')
     plt.show()
 
 
@@ -66,9 +68,9 @@ def ref_y2 (Nc_g_square) :
 if __name__ == '__main__' :
     y_label = 'plaq'
 
-    x1_label = 'g^2 = (2 Nc / beta)'
-    x2_label = 'Nc g^2 = (2 Nc^2 / beta)'
-
+    x1_label = r'$g^2$'
+    # x2_label = '$N_c g^2 = 2 \\frac{Nc^2}{beta$}$'
+    x2_label = r'$N_c g^2$'
     y = np.array(
         [
             # Nc = 3
@@ -130,5 +132,6 @@ if __name__ == '__main__' :
     print(f'x1 = \n{g_square}')
     print(f'x2 = \n{Nc_g_square}')
 
-    draw_table1(g_square, x1_label, y, y_label, Nc, table_name='plaq ~ g^2')
-    draw_table2 (Nc_g_square, x2_label, y, y_label, Nc, table_name='plaq ~ Nc g^2')
+    draw_table1(g_square, x1_label, y, y_label, Nc, table_name=r'$g^2$')
+    table2_title = r'$\frac{1}{N_c}\mathrm{Tr}[U^{1\times 1}_{P, \mu\nu}(N_c, g^2)]$'
+    draw_table2 (Nc_g_square, x2_label, y, y_label, Nc, table_name=table2_title)
