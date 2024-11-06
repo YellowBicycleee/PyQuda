@@ -1,57 +1,70 @@
 import matplotlib.pyplot as plt
+
+from mpl_toolkits.axes_grid1.inset_locator import mark_inset
 import numpy as np
 
 line_color = [None, None, None, 'red', 'orange', 'green', 'blue', None, 'purple']
 
-def draw_table1 (x, x_label, y, y_label, color, table_name) :
+def draw_table1 (x: np.ndarray, x_label: str, y: np.ndarray, y_label: str, color: np.ndarray, table_name: str) :
     batch_num = color.size
-    plt.clf()
-    plt.ylim(0, 1)    # y 坐标限制在 0 到 1
+    fig = plt.figure(0, figsize=(8, 5))
+    left, bottom, width, height = 0.12, 0.12, 0.8, 0.8
+    sub1 = fig.add_axes([left, bottom, width, height])
 
+    max_x = 0
     for i in range(batch_num):
-        plt.plot(x[i], y[i], label=f'Nc = {color[i]}', marker = 's')
-        plt.xlabel(f'color = {color[i]}')
-    plt.title(f'{table_name}')
-    plt.xlabel(f'{x_label}')
-    plt.ylabel(f'{y_label}')
+        max_x = max_x if max_x > x[i].max() else x[i].max()
+
+    sub1.axis([0, max_x + 0.1, 0, 1 + 0.1])
+    sub1.set_title(f'{table_name}')
+    sub1.tick_params(size = 5, labelsize=12, direction='in')
+    sub1.grid(visible=True, ls=":")
     
-    plt.legend()
-    # plt.savefig(table_name)
+    for i in range(batch_num):
+        sub1.plot(x[i], y[i], label=f'Nc = {color[i]}', marker = '.')
+
+    sub1.set_title(f'{table_name}')
+    sub1.set_xlabel(f'{x_label}')
+    sub1.set_ylabel(f'{y_label}')
+    
+    sub1.legend()
     plt.savefig('g_square')
     plt.show()
 
 # x = Nc * g^2
 def draw_table2 (x, x_label, y, y_label, color, table_name) :
     batch_num = color.size
+    lw = 2
+    fig = plt.figure(0, figsize=(8, 5))#用来控制图片的大小
 
-    plt.clf()
-    plt.title(f'{table_name}')
-    plt.ylim(0, 1)    # y 坐标限制在 0 到 1
-    plt.xlim(0, 10)    # x 坐标限制在 0 到 10
+    left, bottom, width, height = 0.12, 0.12, 0.8, 0.8
+    
+    sub1 = fig.add_axes([left, bottom, width, height])
+    sub1.axis([0, 10, 0, 1])
+    sub1.set_title(f'{table_name}')
+    sub1.tick_params(size = 5, labelsize=12, direction='in')
+    sub1.grid(visible=True, ls=":")
 
     # draw real data
     for i in range(batch_num):
-        plt.plot(x[i], y[i], label=f'Nc = {color[i]}', marker = 'o')
-        plt.xlabel(f'color = {color[i]}')
+        sub1.plot(x[i], y[i], label=f'Nc = {color[i]}', lw = lw, marker = '.')
     
     # draw ref data 参考曲线
     ref_x1_arr = np.arange(2, 10, 0.1)
     ref_y1_arr = ref_y1(ref_x1_arr)
     ref_y1_label = r'$\frac{1}{N_c g^2}$'#'1 / (Nc * g^2)'
-    plt.plot(ref_x1_arr, ref_y1_arr, label=f'{ref_y1_label}', linestyle = '--', color = 'brown')
+    sub1.plot(ref_x1_arr, ref_y1_arr, label=f'{ref_y1_label}', linestyle = '--', color = 'brown')
 
     ref_x2_arr = np.arange(0.1, 5, 0.1)
     ref_y2_arr = ref_y2(ref_x2_arr)
     ref_y2_label = r'$1 - \frac{2}{15} N_c g^2$'#'1 - 2/15 * (Nc * g^2)'
-    plt.plot(ref_x2_arr, ref_y2_arr, label=f'{ref_y2_label}', linestyle = '--', color = 'blue')
+    sub1.plot(ref_x2_arr, ref_y2_arr, label=f'{ref_y2_label}', linestyle = '--', color = 'blue')
 
+    sub1.axis([0.0, 10, 0, 1])
+    sub1.set_xlabel(f'{x_label}')
+    sub1.set_ylabel(f'{y_label}')
+    sub1.legend(loc='upper right')
 
-
-    plt.xlabel(f'{x_label}')
-    plt.ylabel(f'{y_label}')
-    
-    plt.legend()
-    # plt.savefig(table_name)
     plt.savefig('Nc_g_square')
     plt.show()
 
@@ -205,9 +218,9 @@ if __name__ == '__main__' :
     Nc_g_square = [2 * Nc[i] * Nc[i] / beta[i] for i in range(Nc.size)]
 
 
-    print(f'beta = \n{beta}')
-    print(f'x1 = \n{g_square}')
-    print(f'x2 = \n{Nc_g_square}')
+    #print(f'beta = \n{beta}')
+    #print(f'x1 = \n{g_square}')
+    #print(f'x2 = \n{Nc_g_square}')
 
     draw_table1(g_square, x1_label, y, y_label, Nc, table_name=r'$g^2$')
     table2_title = r'$\frac{1}{N_c}\mathrm{Tr}[U^{1\times 1}_{P, \mu\nu}(N_c, g^2)]$'
