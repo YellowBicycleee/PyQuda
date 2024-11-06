@@ -60,10 +60,37 @@ def draw_table2 (x, x_label, y, y_label, color, table_name) :
     ref_y2_label = r'$1 - \frac{2}{15} N_c g^2$'#'1 - 2/15 * (Nc * g^2)'
     sub1.plot(ref_x2_arr, ref_y2_arr, label=f'{ref_y2_label}', linestyle = '--', color = 'blue')
 
+    # 子图
+    box = [2.9, 3.1, 0.3, 0.6]
+    scale = 4
+    left, bottom, width, height = 0.8, 0.4, scale * (box[1] - box[0]) / 10, 0.4 * scale * (box[3] - box[2]) / 1
+    sub2 = fig.add_axes([left, bottom, width, height])
+    sub2.axis(box)
+    sub2.tick_params(size=2, labelsize=8, direction='in')
+    sub2.set_xlabel(f'{x_label}')
+    sub2.set_ylabel(f'{y_label}')
+    
+    for i in range(batch_num):
+        sub2.plot(x[i], y[i], label=f'Nc = {color[i]}', lw = lw, marker = '.')
+    # 子图结束
+    # 大图截取框
+    tx0 = box[0]
+    tx1 = box[1]
+    ty0 = box[2]
+    ty1 = box[3]
+    sx = [tx0, tx1, tx1, tx0, tx0]
+    sy = [ty0, ty0, ty1, ty1, ty0]
+    sub1.plot(sx, sy, "r", linestyle='--', linewidth=2, color='black')
+
+    # 使用 mark_inset 连接子图和主图
+    mark_inset(sub1, sub2, loc1=2, loc2=4, fc="none", ec="0.5", linestyle='--')
+
     sub1.axis([0.0, 10, 0, 1])
     sub1.set_xlabel(f'{x_label}')
     sub1.set_ylabel(f'{y_label}')
-    sub1.legend(loc='upper right')
+    # sub1.legend(loc='upper right')
+    sub1.legend(loc='lower left')
+
 
     plt.savefig('Nc_g_square')
     plt.show()
