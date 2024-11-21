@@ -3,65 +3,41 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1.inset_locator import mark_inset
 import numpy as np
 
-line_color = [None, None, None, 'red', 'orange', 'green', 'blue', None, 'purple']
-
-def draw_table1 (x: np.ndarray, x_label: str, y: np.ndarray, y_label: str, color: np.ndarray, table_name: str) :
-    batch_num = color.size
-    fig = plt.figure(0, figsize=(8, 5))
-    left, bottom, width, height = 0.12, 0.12, 0.8, 0.8
-    sub1 = fig.add_axes([left, bottom, width, height])
-
-    max_x = 0
-    for i in range(batch_num):
-        max_x = max_x if max_x > x[i].max() else x[i].max()
-
-    sub1.axis([0, max_x + 0.1, 0, 1 + 0.1])
-    sub1.set_title(f'{table_name}')
-    sub1.tick_params(size = 5, labelsize=12, direction='in')
-    sub1.grid(visible=True, ls=":")
-    
-    for i in range(batch_num):
-        sub1.plot(x[i], y[i], label=f'Nc = {color[i]}', marker = '.')
-
-    sub1.set_title(f'{table_name}')
-    sub1.set_xlabel(f'{x_label}')
-    sub1.set_ylabel(f'{y_label}')
-    
-    sub1.legend()
-    plt.savefig('g_square')
-    plt.show()
+line_color = ['blue', 'orange', 'green', 'red', 'purple', 'brown']
+ref_color = ['darkblue', 'm']
 
 # x = Nc * g^2
-def draw_table2 (x, x_label, y, y_label, color, table_name) :
-    batch_num = color.size
-    lw = 2
+def draw_table2 (x, x_label, y, y_label, Nc, table_title, file_name = 'Nc_g_square') :
+    batch_num = Nc.size
+    lw = 1.5
+    mk_size = [2 for _ in range(len(Nc))]
     fig = plt.figure(0, figsize=(8, 5))#用来控制图片的大小
 
     left, bottom, width, height = 0.12, 0.12, 0.8, 0.8
     
     sub1 = fig.add_axes([left, bottom, width, height])
     sub1.axis([0, 10, 0, 1])
-    sub1.set_title(f'{table_name}')
+    sub1.set_title(f'{table_title}')
     sub1.tick_params(size = 5, labelsize=12, direction='in')
     sub1.grid(visible=True, ls=":")
 
     # draw real data
     for i in range(batch_num):
-        sub1.plot(x[i], y[i], label=f'Nc = {color[i]}', lw = lw, marker = '.')
+        sub1.plot(x[i], y[i], label=r'$N_c=$'+ f'{Nc[i]}', marker = '.', linewidth = lw)
     
     # draw ref data 参考曲线
-    ref_x1_arr = np.arange(2, 10, 0.1)
-    ref_y1_arr = ref_y1(ref_x1_arr)
-    ref_y1_label = r'$\frac{1}{N_c g^2}$'#'1 / (Nc * g^2)'
-    sub1.plot(ref_x1_arr, ref_y1_arr, label=f'{ref_y1_label}', linestyle = '--', color = 'brown')
+    ref_x1_arr = np.arange(1.1, 5, 0.1)
+    ref_y1_arr = ref_y3(ref_x1_arr)
+    ref_y1_label = r'$\frac{1}{2 \lambda}$'
+    sub1.plot(ref_x1_arr, ref_y1_arr, label=f'{ref_y1_label}', linestyle = '--', color = ref_color[0], linewidth=2.5)
 
-    ref_x2_arr = np.arange(0.1, 5, 0.1)
-    ref_y2_arr = ref_y2(ref_x2_arr)
-    ref_y2_label = r'$1 - \frac{2}{15} N_c g^2$'#'1 - 2/15 * (Nc * g^2)'
-    sub1.plot(ref_x2_arr, ref_y2_arr, label=f'{ref_y2_label}', linestyle = '--', color = 'blue')
+    ref_x2_arr = np.arange(0.1, 2, 0.1)
+    ref_y2_arr = ref_y4(ref_x2_arr)
+    ref_y2_label = r'$1 - \frac{1}{4} \lambda$'
+    sub1.plot(ref_x2_arr, ref_y2_arr, label=f'{ref_y2_label}', linestyle = '--', color = ref_color[1], linewidth=2.5)
 
     # 子图
-    box = [2.9, 3.1, 0.3, 0.6]
+    box = [1.38, 1.55, 0.37, 0.6]
     scale = 4
     left, bottom, width, height = 0.8, 0.4, scale * (box[1] - box[0]) / 10, 0.4 * scale * (box[3] - box[2]) / 1
     sub2 = fig.add_axes([left, bottom, width, height])
@@ -71,7 +47,8 @@ def draw_table2 (x, x_label, y, y_label, color, table_name) :
     sub2.set_ylabel(f'{y_label}')
     
     for i in range(batch_num):
-        sub2.plot(x[i], y[i], label=f'Nc = {color[i]}', lw = lw, marker = '.')
+        sub2.plot(x[i], y[i], label=f'Nc = {Nc[i]}', marker = '.', linewidth = lw)
+    sub2.axvline(x=1.5, color='black', linestyle='--',linewidth=1)
     # 子图结束
     # 大图截取框
     tx0 = box[0]
@@ -80,19 +57,19 @@ def draw_table2 (x, x_label, y, y_label, color, table_name) :
     ty1 = box[3]
     sx = [tx0, tx1, tx1, tx0, tx0]
     sy = [ty0, ty0, ty1, ty1, ty0]
-    sub1.plot(sx, sy, "r", linestyle='--', linewidth=2, color='black')
+    sub1.plot(sx, sy, linestyle='--', linewidth=2, color='black')
 
     # 使用 mark_inset 连接子图和主图
     mark_inset(sub1, sub2, loc1=2, loc2=4, fc="none", ec="0.5", linestyle='--')
 
-    sub1.axis([0.0, 10, 0, 1])
+    sub1.axis([0.0, 5, 0, 1])
     sub1.set_xlabel(f'{x_label}')
     sub1.set_ylabel(f'{y_label}')
     # sub1.legend(loc='upper right')
     sub1.legend(loc='lower left')
 
 
-    plt.savefig('Nc_g_square')
+    plt.savefig(file_name)
     plt.show()
 
 
@@ -104,6 +81,13 @@ def ref_y1 (Nc_g_square) :
 def ref_y2 (Nc_g_square) :
     return (1 - (2/15) * Nc_g_square)
 
+# ref3 = 1 /  (2* lambda)
+def ref_y3 (lambda_input) :
+    return 1 / (2 * lambda_input)
+
+# ref4 = 1 - 1 / 4 * lambda
+def ref_y4 (lamda_input) :
+    return (1 - (1 / 4) * lamda_input)
 
 if __name__ == '__main__' :
     y_label = 'plaq'
@@ -173,6 +157,17 @@ if __name__ == '__main__' :
                     9.630748651857e-01, 9.816711165184e-01
                 ]
             ),
+            # Nc = 7
+            np.array (
+                [
+                    0.100071402, 0.133594709, 0.167570782, 0.21145536, 0.25820829, 0.2783697, 
+                    0.299968119, 0.311430546, 0.323469573, 0.350072141, 0.383740746, 0.392502577, 
+                    0.394833041, 0.39609008, 0.397355469, 0.398637569, 0.399894583, 0.400092995, 
+                    0.400313073, 0.51168339, 0.511965272, 0.514437335, 0.516110778, 0.517372258, 
+                    0.518643581, 0.522596534, 0.522702558, 0.522889276, 0.553761364, 0.602495438, 
+                    0.65637587, 0.725440847, 0.801831925, 0.924620558, 0.962810952, 0.981521426
+                ]
+            ),
             # Nc = 8
             np.array(
                 [
@@ -183,12 +178,33 @@ if __name__ == '__main__' :
                     5.490242182577e-01, 5.992048189478e-01, 6.538442352275e-01, 7.236652728097e-01, 
                     8.006708131321e-01, 9.242064293460e-01, 9.626223917997e-01, 9.814251224791e-01
                 ]
+            ), 
+            # Nc = 9
+            np.array(
+                [
+                    0.100029069, 0.133564414, 0.167241146, 0.21022813, 0.255355014, 0.274478354, 
+                    0.294592928, 0.305164367, 0.316216767, 0.340040838, 0.36796366, 0.374518981, 
+                    0.381465662, 0.382985901, 0.382924513, 0.383084758, 0.383711086, 0.384459236, 
+                    0.510220161, 0.521663176, 0.534919011, 0.545186278, 0.596938188, 0.652309718, 
+                    0.722614028, 0.799964019, 0.923958931, 0.962495504, 0.981367422
+                ]
+            ), 
+            # Nc = 12, lattice = 16 * 32
+            np.array (
+                [
+                    0.099878313, 0.133526823, 0.16722637, 0.209857577, 0.254412958, 0.272999327, 
+                    0.29239511, 0.302514585, 0.312767288, 0.335107743, 0.360085377, 0.365708842, 
+                    0.37160039, 0.372720675, 0.372779238, 0.372809873, 0.374742801, 0.376238073, 
+                    0.376772988, 0.506787424, 0.508949313, 0.520010622, 0.527248698, 0.533428289,
+                    0.538832513, 0.592890421, 0.649523812, 0.720685388, 0.798674129, 0.923511898, 
+                    0.962274987, 0.981263917
+                ]
             )
         ]
     
 
     # beta = const * Nc * Nc / 3
-    Nc = np.array([2, 3, 4, 5, 6, 8])
+    Nc = np.array([2, 3, 4, 5, 6, 7, 8, 9, 12])
 
     const = \
         [
@@ -224,18 +240,45 @@ if __name__ == '__main__' :
             ]),
             # Nc = 6
             np.array(
-            [   
-                0.6, 0.8, 1, 1.25, 1.5, 1.6, 1.7, 1.75, 1.8, 1.9, 2, 2.02, 
-                2.0201, 2.021, 2.022, 2.023, 2.025, 2.03, 2.04, 2.044, 2.04401, 
-                2.0442, 2.1, 2.25, 2.5, 3, 4, 10, 20, 40
-            ]),
+                [   
+                    0.6, 0.8, 1, 1.25, 1.5, 1.6, 1.7, 1.75, 1.8, 1.9, 2, 2.02, 
+                    2.0201, 2.021, 2.022, 2.023, 2.025, 2.03, 2.04, 2.044, 2.04401, 
+                    2.0442, 2.1, 2.25, 2.5, 3, 4, 10, 20, 40
+                ]
+            ),
+            #Nc = 7
+            np.array (
+                [
+                    0.6, 0.8, 1, 1.25, 1.5, 1.6, 1.7, 1.75, 1.8, 1.9, 2, 2.02, 
+                    2.025, 2.0275, 2.03, 2.0325, 2.035, 2.0353, 2.0356, 2.0359, 
+                    2.036, 2.037, 2.038, 2.039, 2.04, 2.044, 2.04401, 2.0442, 
+                    2.1, 2.25, 2.5, 3, 4, 10, 20, 40
+                ]
+            ),
             # Nc = 8
             np.array(
-            [   
-                0.6, 0.8, 1, 1.25, 1.5, 1.6, 1.7, 1.75, 1.8, 1.9, 2, 
-                2.02, 2.04, 2.044, 2.04401, 2.0442, 2.1, 2.25, 2.5, 
-                3, 4, 10, 20, 40
-            ])
+                [   
+                    0.6, 0.8, 1, 1.25, 1.5, 1.6, 1.7, 1.75, 1.8, 1.9, 2, 
+                    2.02, 2.04, 2.044, 2.04401, 2.0442, 2.1, 2.25, 2.5, 
+                    3, 4, 10, 20, 40
+                ]
+            ),
+            # Nc = 9
+            np.array(
+                [
+                    0.6, 0.8, 1, 1.25, 1.5, 1.6, 1.7, 1.75, 1.8, 1.9, 2, 2.02, 2.04, 2.044, 
+                    2.04401, 2.0442, 2.046, 2.048, 2.05, 2.06, 2.08, 2.1, 2.25, 2.5, 3, 4, 
+                    10, 20, 40
+                ]
+            ),
+            # SU12, now, we used 16 * 32 lattice on su12
+            np.array (
+                [
+                    0.6, 0.8, 1, 1.25, 1.5, 1.6, 1.7, 1.75, 1.8, 1.9, 2, 2.02, 2.04, 2.044, 
+                    2.04401, 2.0442, 2.05, 2.055, 2.057, 2.059, 2.06, 2.07, 2.08, 2.09, 2.1, 
+                    2.25, 2.5, 3, 4, 10, 20, 40
+                ]
+            )
         ] 
 
     beta = [const[i] * Nc[i] * Nc[i] / 3 for i in range(Nc.size)]
@@ -244,11 +287,16 @@ if __name__ == '__main__' :
     # x2 = 2 * Nc^2 / beta
     Nc_g_square = [2 * Nc[i] * Nc[i] / beta[i] for i in range(Nc.size)]
 
+    # lambda = N_c g^2 / 2
+    lambda_res = [Nc_g_square[i] / 2 for i in range(Nc.size)]
+    lambda_label = r'$\lambda$'
 
-    #print(f'beta = \n{beta}')
-    #print(f'x1 = \n{g_square}')
-    #print(f'x2 = \n{Nc_g_square}')
-
-    draw_table1(g_square, x1_label, y, y_label, Nc, table_name=r'$g^2$')
     table2_title = r'$\frac{1}{N_c}\mathrm{Tr}[U^{1\times 1}_{P, \mu\nu}(N_c, g^2)]$'
-    draw_table2 (Nc_g_square, x2_label, y, y_label, Nc, table_name=table2_title)
+    file_name = 'plaq_lambda.svg'
+    # draw_table2 (Nc_g_square, x2_label, y, y_label, Nc, table_title=table2_title, file_name=file_name)
+    draw_table2 (lambda_res, lambda_label, y, y_label, Nc, table_title=table2_title, file_name=file_name)
+
+    # 
+    not_prepared_32x64 = [12]
+    for n_color in not_prepared_32x64:
+        print(f'#### Now, su{n_color} 32x64 lattice is not prepared, Now using 16*32 data ####')
