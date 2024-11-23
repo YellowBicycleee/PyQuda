@@ -100,7 +100,7 @@ if __name__ == '__main__' :
     # x2_label = '$N_c g^2 = 2 \\frac{Nc^2}{beta$}$'
     x2_label = r'$N_c g^2$'
 
-    Nc = np.array([2, 3, 4, 5, 6, 7, 8, 9, 12])
+    Nc = np.array([2, 3, 4, 5, 6, 7, 8, 9, 10, 12])
 
     y = []
     const = []
@@ -115,12 +115,8 @@ if __name__ == '__main__' :
             print(f'file {csv_path} not exists')
             y.append(np.array([]))
             const.append(np.array([]))
-    
-    # print(f'const = {const}')
 
     # beta = const * Nc * Nc / 3
-
-
     beta = [const[i] * Nc[i] * Nc[i] / 3 for i in range(Nc.size)]
     # x1 = 2 * Nc / beta
     g_square = [2 * Nc[i] / beta[i] for i in range(Nc.size)]
