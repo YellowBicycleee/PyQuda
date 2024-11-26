@@ -50,7 +50,7 @@ double_prec = 2
 
 precision_table = ['half', 'float', 'double']
 max_iteration = 1000
-max_prec = 1e-9
+max_prec = 1e-4
 
 Nc = 3
 def draw_table_mrhs (x, y1, y1_label, y2, y2_label, table_name, my_dslash_prec) :

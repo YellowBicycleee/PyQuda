@@ -61,6 +61,10 @@ def test_mpi(round, my_m_input, warm_flag = False):
   dslash = core.getDslash(latt_size, mass, 1e-9, 1000, xi_0, nu, coeff_t, coeff_r, multigrid=False, anti_periodic_t=False)
   U = gauge_utils.gaussGauge(latt_size, 0)
 
+
+#   print(f'U[xdim = 0, parity = 0, 0, 0, 0, 0]: \n{U.data[0, 1, 0, 0, 0, Lx//2 - 1]}')
+  print(f'x[1, 0, 0, 0, 0, 0, 0] + i x[1, 0, 0, 0, 0, 0, 3] = \n{p_mrhs[0].data[1, 0, 0, 0, 0, 0] + 1j * p_mrhs[0].data[1, 0, 0, 0, 0, 3]}')
+
   dslash.loadGauge(U)
   cp.cuda.runtime.deviceSynchronize()
   
@@ -110,7 +114,7 @@ def test_dslash(my_n_color, my_m_input, input_prec, dslash_prec, quda_average_ti
 
   if (not warmup_flag):
     print(f'=========== mrhs = {my_m_input} condition begin ===========')
-  iteration = 10
+  iteration = 1
   for i in range(iteration) :
     quda_time, qcu_time = test_mpi(i, my_m_input)
     total_quda_time += quda_time
@@ -125,11 +129,12 @@ def test_dslash(my_n_color, my_m_input, input_prec, dslash_prec, quda_average_ti
   cp.cuda.runtime.deviceSynchronize()
 
 if __name__ == '__main__' :
-  max_input = 12
+  # _ = input()
+  max_input = 1
   my_n_color = 3
 
   my_input_prec  = double_prec
-  my_dslash_prec = double_prec
+  my_dslash_prec = double_prec #float_prec #half_prec # double_prec
 
   quda_average_time = []
   qcu_average_time  = []

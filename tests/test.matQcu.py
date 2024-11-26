@@ -18,10 +18,10 @@ from pyquda.utils import gauge_utils
 
 os.environ["QUDA_RESOURCE_PATH"] = ".cache"
 
-Nd, Ns = 4, 4
+Nd, Ns, Nc = 4, 4, 3
 
-# latt_size = [8, 8,16, 32]
-latt_size = [16, 16, 16, 32]
+latt_size = [8, 8,16, 32]
+# latt_size = [16, 16, 16, 16]
 
 grid_size = [1, 1, 1, 1]
 Lx, Ly, Lz, Lt = latt_size
@@ -49,25 +49,30 @@ float_prec = 1
 double_prec = 2
 
 precision_table = ['half', 'float', 'double']
-max_iteration = 1000
-max_prec = 1e-9
-
-Nc = 4
 
 def test_mpi(round, my_m_input, warm_flag = False):
   from pyquda.mpi import comm, rank, size, grid, coord, gpuid
-  x_mrhs = [LatticeFermion(latt_size, Nc, cp.random.randn(Lt, Lz, Ly, Lx, Ns, Nc * 2).view(cp.complex128)) \
+  p_mrhs = [LatticeFermion(latt_size, 3, cp.random.randn(Lt, Lz, Ly, Lx, Ns, Nc * 2).view(cp.complex128)) \
             for i in range(my_m_input)]
 
-  qcu_x_mrhs = [LatticeFermion(latt_size, Nc) for i in range(my_m_input)]
-  qcu_b_mrhs = [LatticeFermion(latt_size, Nc) for i in range(my_m_input)]
+  quda_Mp_mrhs = [LatticeFermion(latt_size, 3) for i in range(my_m_input)]
+  qcu_Mp_mrhs = [LatticeFermion(latt_size, 3) for i in range(my_m_input)]
 
-  if Nc == 3:
-    U = gauge_utils.gaussGauge(latt_size, 0)
-  else :
-    U = gauge_utils.unitGauge(latt_size, Nc)
-    file_path = 'gaugeSU4_16x32_beta10.133.bin'
-    qcu.read_gauge_from_file(U.data_ptr, file_path.encode('utf-8'))
+  quda_dslash = core.getDslash(latt_size, mass, 1e-9, 1000, xi_0, nu, coeff_t, coeff_r, multigrid=False, anti_periodic_t=False)
+  U = gauge_utils.gaussGauge(latt_size, 0)
+
+  quda_dslash.loadGauge(U)
+  cp.cuda.runtime.deviceSynchronize()
+  
+  t1 = perf_counter()
+  for i in range(my_m_input):
+    quda.MatQuda(quda_Mp_mrhs[i].even_ptr, p_mrhs[i].even_ptr, quda_dslash.invert_param)
+    # quda.dslashQuda(quda_Mp_mrhs[i].even_ptr, p_mrhs[i].odd_ptr, quda_dslash.invert_param, QudaParity.QUDA_EVEN_PARITY)
+    # quda.dslashQuda(quda_Mp_mrhs[i].odd_ptr, p_mrhs[i].even_ptr, quda_dslash.invert_param, QudaParity.QUDA_ODD_PARITY)
+
+  cp.cuda.runtime.deviceSynchronize()
+  t2 = perf_counter()
+  quda_dslash_time = t2 - t1
 
   #my code 
   qcu.loadQcuGauge(U.data_ptr, 2)		# 2---double 1--float 0---half
@@ -76,47 +81,40 @@ def test_mpi(round, my_m_input, warm_flag = False):
 
   t1 = perf_counter()
   for i in range(my_m_input):
-    qcu.pushBackFermions(qcu_b_mrhs[i].even_ptr, x_mrhs[i].even_ptr)
+    qcu.pushBackFermions(qcu_Mp_mrhs[i].even_ptr, p_mrhs[i].even_ptr)
   qcu.mat_Qcu(0)	# param: dagger
   cp.cuda.runtime.deviceSynchronize()
+  print (f'qcu[0, 0, 0, 0, 0] = {qcu_Mp_mrhs[0].data[0, 0, 0, 0, 0]}')
   t2 = perf_counter()
   qcu_dslash_time = t2 - t1
 
-  # qcu invert 
-  t1 = perf_counter()
-  for i in range(my_m_input):
-    qcu.pushBackFermions(qcu_x_mrhs[i].data_ptr, qcu_b_mrhs[i].data_ptr)
-  qcu.qcuInvert(max_iteration, max_prec)
-  cp.cuda.runtime.deviceSynchronize()
-  t2 = perf_counter()
-  qcu_inverter_time = t2 - t1
-
-  for i in range(my_m_input):
-    print(f'rank {rank}, rhs {i} difference between qcu_x_mrhs and x_mrhs: \
-          , {cp.linalg.norm(x_mrhs[i].data - qcu_x_mrhs[i].data) / cp.linalg.norm(x_mrhs[i].data)}')
-  
+  # if (not warm_flag):
+  print(f"Quda dslash: {quda_dslash_time}sec \nQcu dslash:  {qcu_dslash_time} sec")
+ 
+  average_difference = cp.sum(cp.array([cp.linalg.norm(quda_Mp_mrhs[i].data - qcu_Mp_mrhs[i].data) / cp.linalg.norm(quda_Mp_mrhs[i].data) \
+              for i in range(my_m_input)])) / my_m_input
+  print(f'rank {rank}, average difference: , {average_difference}')
   print('===============================')
-
-  print(U.data.shape)
-  print(U.lexico().shape)
-
-  return qcu_dslash_time
+  return quda_dslash_time, qcu_dslash_time
 
 
 
 def test_dslash(my_n_color, my_m_input, input_prec, dslash_prec, quda_average_time, qcu_average_time, warmup_flag = False)->int:
   qcu.initGridSize(grid, param, my_n_color, my_m_input, input_prec, dslash_prec)
   
+  total_quda_time = 0
   total_qcu_time = 0
 
   if (not warmup_flag):
     print(f'=========== mrhs = {my_m_input} condition begin ===========')
   iteration = 1
   for i in range(iteration) :
-    qcu_time = test_mpi(i, my_m_input)
+    quda_time, qcu_time = test_mpi(i, my_m_input)
+    total_quda_time += quda_time
     total_qcu_time += qcu_time
   
   if (not warmup_flag):
+    quda_average_time.append(total_quda_time / iteration)
     qcu_average_time.append(total_qcu_time / iteration)
     print(f'=========== mrhs = {my_m_input} condition end ===========')
 
@@ -124,8 +122,8 @@ def test_dslash(my_n_color, my_m_input, input_prec, dslash_prec, quda_average_ti
   cp.cuda.runtime.deviceSynchronize()
 
 if __name__ == '__main__' :
-  max_input = 8
-  my_n_color = Nc
+  max_input = 6
+  my_n_color = 3
 
   my_input_prec  = double_prec
   my_dslash_prec = double_prec
@@ -133,11 +131,18 @@ if __name__ == '__main__' :
   quda_average_time = []
   qcu_average_time  = []
 
-  test_dslash(my_n_color, max_input, input_prec=my_input_prec, dslash_prec=my_dslash_prec, quda_average_time = quda_average_time, qcu_average_time = qcu_average_time)
+  
+  # warm up
+  test_dslash(my_n_color, 1, input_prec=my_input_prec, dslash_prec=my_dslash_prec, \
+    quda_average_time = quda_average_time, qcu_average_time = qcu_average_time, warmup_flag=True)
+  # warm up end
 
+  for my_m_input in range(1, max_input+1):
+    test_dslash(my_n_color, my_m_input, input_prec=my_input_prec, dslash_prec=my_dslash_prec, quda_average_time = quda_average_time, qcu_average_time = qcu_average_time)
+  
   print(f'quda_average_time: {quda_average_time}')
   print(f'qcu_average_time: {qcu_average_time}')
   
   x = np.arange(1, max_input+1, 1)
-  # quda_per_rhs = quda_average_time / x
+  quda_per_rhs = quda_average_time / x
   qcu_per_rhs  = qcu_average_time / x
