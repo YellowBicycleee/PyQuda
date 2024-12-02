@@ -7,8 +7,8 @@ import numpy as np
 def load_data():
     # df1 = pd.read_csv('data/su6_single_beta.csv')
     # df2 = pd.read_csv('data/su6_begin_const0.6_traj500_others_2000.csv')
-    df1 = pd.read_csv('data/su9_start_from_lambda_5.csv')
-    df2 = pd.read_csv('data/su9_single_lambda.csv')
+    df1 = pd.read_csv('data/su6_start_from_lambda_5.csv')
+    df2 = pd.read_csv('data/su6_single_lambda.csv')
     return df1, df2
 
 # 创建3D图表
@@ -63,7 +63,7 @@ def create_2d_plot(df1, df2, axis, value, point_size):
             title=f'2D Plot for traj={value}',
             xaxis_title='lambda',
             yaxis_title='plaquette',
-            xaxis=dict(range=[1.4, 1.5]),
+            xaxis=dict(range=[1.3, 1.5]),
             yaxis=dict(range=[0, 1])  # 限制 y 轴范围在 [0, 1]
         )
         
