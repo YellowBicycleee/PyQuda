@@ -9,7 +9,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 test_dir = os.path.dirname(os.path.abspath(__file__))
-#sys.path.insert(0, os.path.join(test_dir, ".."))
 
 from pyquda import init, core, quda, mpi, pyqcu as qcu
 from pyquda.enum_quda import QudaParity
@@ -20,6 +19,7 @@ os.environ["QUDA_RESOURCE_PATH"] = ".cache"
 
 Nd, Ns, Nc = 4, 4, 3
 
+# latt_size = [4,4,4,4]
 # latt_size = [8,8,8,8]
 latt_size = [16, 16, 16, 16]
 
@@ -51,125 +51,129 @@ double_prec = 2
 precision_table = ['half', 'float', 'double']
 
 def test_mpi(round, my_m_input, warm_flag = False):
-  from pyquda.mpi import comm, rank, size, grid, coord, gpuid
-  p_mrhs = [LatticeFermion(latt_size, Nc, cp.random.randn(Lt, Lz, Ly, Lx, Ns, Nc * 2).view(cp.complex128)) \
-            for i in range(my_m_input)]
+    from pyquda.mpi import comm, rank, size, grid, coord, gpuid
+    p_mrhs = [LatticeFermion(latt_size, Nc, cp.random.randn(Lt, Lz, Ly, Lx, Ns, Nc * 2).view(cp.complex128)) \
+        for i in range(my_m_input)]
 
-  quda_Mp_mrhs = [LatticeFermion(latt_size, Nc) for i in range(my_m_input)]
-  qcu_Mp_mrhs = [LatticeFermion(latt_size, Nc) for i in range(my_m_input)]
+    quda_Mp_mrhs = [LatticeFermion(latt_size, Nc) for i in range(my_m_input)]
+    qcu_Mp_mrhs = [LatticeFermion(latt_size, Nc) for i in range(my_m_input)]
 
-  dslash = core.getDslash(latt_size, mass, 1e-9, 1000, xi_0, nu, coeff_t, coeff_r, multigrid=False, anti_periodic_t=False)
-  U = gauge_utils.gaussGauge(latt_size, 0)
+    dslash = core.getDslash(latt_size, mass, 1e-9, 1000, xi_0, nu, coeff_t, coeff_r, multigrid=False, anti_periodic_t=False)
+    U = gauge_utils.gaussGauge(latt_size, 0)
 
 
 #   print(f'U[xdim = 0, parity = 0, 0, 0, 0, 0]: \n{U.data[0, 1, 0, 0, 0, Lx//2 - 1]}')
-  print(f'x[1, 0, 0, 0, 0, 0, 0] + i x[1, 0, 0, 0, 0, 0, 3] = \n{p_mrhs[0].data[1, 0, 0, 0, 0, 0] + 1j * p_mrhs[0].data[1, 0, 0, 0, 0, 3]}')
-
-  dslash.loadGauge(U)
-  cp.cuda.runtime.deviceSynchronize()
+#   print(f'x[1, 0, 0, 0, 0, 0, 0] + i x[1, 0, 0, 0, 0, 0, 3] = \n{p_mrhs[0].data[1, 0, 0, 0, 0, 0] + 1j * p_mrhs[0].data[1, 0, 0, 0, 0, 3]}')
+#   print(f'x[1, 0, 0, 0, 0, 0, 0] = \n{p_mrhs[0].data[1, 0, 0, 0, 0, 0]}')
+#   print(f'x[1, 0, 0, 0, 0, 0, 3] = \n{p_mrhs[0].data[1, 0, 0, 0, 0, 3]}')
+#   print(f'x[1, 0, 0, 0, 0, 0, 3] + i x[1, 0, 0, 0, 0, 0, 0] = \n{p_mrhs[0].data[1, 0, 0, 0, 0, 0] + 1j * p_mrhs[0].data[1, 0, 0, 0, 0, 3]}')
+    dslash.loadGauge(U)
+    cp.cuda.runtime.deviceSynchronize()
   
-  t1 = perf_counter()
-  for i in range(my_m_input):
-    quda.dslashQuda(quda_Mp_mrhs[i].even_ptr, p_mrhs[i].odd_ptr, dslash.invert_param, QudaParity.QUDA_EVEN_PARITY)
-    quda.dslashQuda(quda_Mp_mrhs[i].odd_ptr, p_mrhs[i].even_ptr, dslash.invert_param, QudaParity.QUDA_ODD_PARITY)
-  cp.cuda.runtime.deviceSynchronize()
-  t2 = perf_counter()
-  quda_dslash_time = t2 - t1
+    t1 = perf_counter()
+    for i in range(my_m_input):
+        quda.dslashQuda(quda_Mp_mrhs[i].even_ptr, p_mrhs[i].odd_ptr, dslash.invert_param, QudaParity.QUDA_EVEN_PARITY)
+        quda.dslashQuda(quda_Mp_mrhs[i].odd_ptr, p_mrhs[i].even_ptr, dslash.invert_param, QudaParity.QUDA_ODD_PARITY)
+    cp.cuda.runtime.deviceSynchronize()
+    t2 = perf_counter()
+    quda_dslash_time = t2 - t1
 
-  #my code 
-  qcu.loadQcuGauge(U.data_ptr, 2)		# 2---double 1--float 0---half
-  qcu.getDslash(0, mass) # 0----WILSON
-  cp.cuda.runtime.deviceSynchronize()
+    #my code 
+    qcu.loadQcuGauge(U.data_ptr, 2)		# 2---double 1--float 0---half
+    qcu.getDslash(0, mass) # 0----WILSON
+    cp.cuda.runtime.deviceSynchronize()
 
-  t1 = perf_counter()
-  for i in range(my_m_input):
-    qcu.pushBackFermions(qcu_Mp_mrhs[i].even_ptr, p_mrhs[i].odd_ptr)
-  qcu.start_dslash(0, 0)	# param1 : parity  param2: dagger
+    
+    t1 = perf_counter()
+    for i in range(my_m_input):
+        qcu.pushBackFermions(qcu_Mp_mrhs[i].even_ptr, p_mrhs[i].odd_ptr)
+    qcu.start_dslash(0, 0)	# param1 : parity  param2: dagger
 
-  for i in range(my_m_input):
-    qcu.pushBackFermions(qcu_Mp_mrhs[i].odd_ptr, p_mrhs[i].even_ptr)
-  qcu.start_dslash(1, 0)
-  cp.cuda.runtime.deviceSynchronize()
-  t2 = perf_counter()
-  qcu_dslash_time = t2 - t1
+    for i in range(my_m_input):
+        qcu.pushBackFermions(qcu_Mp_mrhs[i].odd_ptr, p_mrhs[i].even_ptr)
+    qcu.start_dslash(1, 0)
+    cp.cuda.runtime.deviceSynchronize()
+    t2 = perf_counter()
+    qcu_dslash_time = t2 - t1
 
-  if (not warm_flag):
-    print(f"Quda dslash: {quda_dslash_time}sec \nQcu dslash:  {qcu_dslash_time} sec")
-  # for i in range(my_m_input) :
-  #   print(f'rank {rank}, Mp[{i}] difference: , \
-  #         {cp.linalg.norm(quda_Mp_mrhs[i].data - qcu_Mp_mrhs[i].data) / cp.linalg.norm(quda_Mp_mrhs[i].data)}')
-  
-  average_difference = cp.sum(cp.array([cp.linalg.norm(quda_Mp_mrhs[i].data - qcu_Mp_mrhs[i].data) / cp.linalg.norm(quda_Mp_mrhs[i].data) \
-              for i in range(my_m_input)])) / my_m_input
-  print(f'rank {rank}, average difference: , {average_difference}')
-  # print('===============================')
-  return quda_dslash_time, qcu_dslash_time
+    if (not warm_flag):
+        print(f"Quda dslash: {quda_dslash_time}sec \nQcu dslash:  {qcu_dslash_time} sec")
+    # for i in range(my_m_input) :
+    #   print(f'rank {rank}, Mp[{i}] difference: , \
+    #         {cp.linalg.norm(quda_Mp_mrhs[i].data - qcu_Mp_mrhs[i].data) / cp.linalg.norm(quda_Mp_mrhs[i].data)}')
+    print(f'quda_res = \n{quda_Mp_mrhs[0].data[0, 0, 0, 0, 0]}')
+    print(f'qcu_res = \n{qcu_Mp_mrhs[0].data[0, 0, 0, 0, 0]}')
+    average_difference = cp.sum(cp.array([cp.linalg.norm(quda_Mp_mrhs[i].data - qcu_Mp_mrhs[i].data) / cp.linalg.norm(quda_Mp_mrhs[i].data) \
+                for i in range(my_m_input)])) / my_m_input
+    print(f'rank {rank}, average difference: , {average_difference}')
+
+    return quda_dslash_time, qcu_dslash_time
 
 
 def test_dslash(my_n_color, my_m_input, input_prec, dslash_prec, quda_average_time, qcu_average_time, warmup_flag = False)->int:
-  qcu.initGridSize(grid, param, my_n_color, my_m_input, input_prec, dslash_prec)
-  
-  total_quda_time = 0
-  total_qcu_time = 0
+    qcu.initGridSize(grid, param, my_n_color, my_m_input, input_prec, dslash_prec)
+    
+    total_quda_time = 0
+    total_qcu_time = 0
 
-  if (not warmup_flag):
-    print(f'=========== mrhs = {my_m_input} condition begin ===========')
-  iteration = 1
-  for i in range(iteration) :
-    quda_time, qcu_time = test_mpi(i, my_m_input)
-    total_quda_time += quda_time
-    total_qcu_time += qcu_time
-  
-  if (not warmup_flag):
-    quda_average_time.append(total_quda_time / iteration)
-    qcu_average_time.append(total_qcu_time / iteration)
-    print(f'=========== mrhs = {my_m_input} condition end ===========')
+    if (not warmup_flag):
+        print(f'=========== mrhs = {my_m_input} condition begin ===========')
+    iteration = 1
+    for i in range(iteration) :
+        quda_time, qcu_time = test_mpi(i, my_m_input)
+        total_quda_time += quda_time
+        total_qcu_time += qcu_time
+    
+    if (not warmup_flag):
+        quda_average_time.append(total_quda_time / iteration)
+        qcu_average_time.append(total_qcu_time / iteration)
+        print(f'=========== mrhs = {my_m_input} condition end ===========')
 
-  qcu.finalizeQcu()
-  cp.cuda.runtime.deviceSynchronize()
+    qcu.finalizeQcu()
+    cp.cuda.runtime.deviceSynchronize()
 
 if __name__ == '__main__' :
-  # _ = input()
-  max_input = 1
-  my_n_color = 3
+    # _ = input()
+    max_input = 32
+    my_n_color = 3
 
-  my_input_prec  = double_prec
-  my_dslash_prec = double_prec #float_prec #half_prec # double_prec
+    my_input_prec  = double_prec
+    my_dslash_prec = half_prec #float_prec #double_prec #float_prec #half_prec # double_prec
 
-  quda_average_time = []
-  qcu_average_time  = []
+    quda_average_time = []
+    qcu_average_time  = []
 
   
-  # warm up
-  test_dslash(my_n_color, 1, input_prec=my_input_prec, dslash_prec=my_dslash_prec, \
-    quda_average_time = quda_average_time, qcu_average_time = qcu_average_time, warmup_flag=True)
-  # warm up end
+    # warm up
+    # test_dslash(my_n_color, 1, input_prec=my_input_prec, dslash_prec=my_dslash_prec, \
+        # quda_average_time = quda_average_time, qcu_average_time = qcu_average_time, warmup_flag=True)
+    # warm up end
 
-  for my_m_input in range(1, max_input+1):
-    test_dslash(my_n_color, my_m_input, input_prec=my_input_prec, dslash_prec=my_dslash_prec, quda_average_time = quda_average_time, qcu_average_time = qcu_average_time)
+    for my_m_input in range(1, max_input+1):
+        test_dslash(my_n_color, my_m_input, input_prec=my_input_prec, dslash_prec=my_dslash_prec, quda_average_time = quda_average_time, qcu_average_time = qcu_average_time)
+    
+    print(f'quda_average_time: {quda_average_time}')
+    print(f'qcu_average_time: {qcu_average_time}')
   
-  print(f'quda_average_time: {quda_average_time}')
-  print(f'qcu_average_time: {qcu_average_time}')
-  
-  x = np.arange(1, max_input+1, 1)
-  quda_per_rhs = quda_average_time / x
-  qcu_per_rhs  = qcu_average_time / x
+    x = np.arange(1, max_input+1, 1)
+    quda_per_rhs = quda_average_time / x
+    qcu_per_rhs  = qcu_average_time / x
 
-  plt.plot(x, quda_per_rhs, label='quda', marker = 'o')
-  plt.plot(x, qcu_per_rhs, linestyle = '--',label='qcu', marker='o')
-  plt.title(f'average dslash time per rhs, latt size = {latt_size}, prec = {precision_table[my_dslash_prec]}')
-  plt.xlabel('m_input')
-  plt.ylabel('time')
-  plt.legend()
-  plt.show()
-  plt.savefig('dslash_result_per_rhs.png')
+    plt.plot(x, quda_per_rhs, label='quda', marker = 'o')
+    plt.plot(x, qcu_per_rhs, linestyle = '--',label='qcu', marker='o')
+    plt.title(f'average dslash time per rhs, latt size = {latt_size}, prec = {precision_table[my_dslash_prec]}')
+    plt.xlabel('m_input')
+    plt.ylabel('time')
+    plt.legend()
+    plt.show()
+    plt.savefig('dslash_result_per_rhs.png')
 
-  plt.clf()
-  plt.plot(x, quda_average_time, label='quda', marker = 'o')
-  plt.plot(x, qcu_average_time, linestyle = '--',label='qcu', marker='o')
-  plt.title(f'average dslash time, latt size = {latt_size}, prec = {precision_table[my_dslash_prec]}')
-  plt.xlabel('m_input')
-  plt.ylabel('time')
-  plt.legend()
-  plt.show()
-  plt.savefig('dslash_result.png')
+    plt.clf()
+    plt.plot(x, quda_average_time, label='quda', marker = 'o')
+    plt.plot(x, qcu_average_time, linestyle = '--',label='qcu', marker='o')
+    plt.title(f'average dslash time, latt size = {latt_size}, prec = {precision_table[my_dslash_prec]}')
+    plt.xlabel('m_input')
+    plt.ylabel('time')
+    plt.legend()
+    plt.show()
+    plt.savefig('dslash_result.png')
