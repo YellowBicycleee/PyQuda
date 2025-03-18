@@ -56,9 +56,8 @@ def loadQcuGauge(Pointer gauge, int float_precision):
     qcu.loadQcuGauge(gauge.ptr, float_precision)
     # void loadQcuGauge(void *gauge, int floatPrecision)
 
-def getDslash(int dslash_type, double mass):
-    qcu.getDslash(dslash_type, mass)
-    # void getDslash(int dslashType, double mass)
+def getDslash(int dslash_type, double mass, int anti_periodic_t):
+    qcu.getDslash(dslash_type, mass, anti_periodic_t)
 
 def finalizeQcu():
     qcu.finalizeQcu()
@@ -71,9 +70,16 @@ def mat_Qcu(int daggerFlag):
 def qcuInvert(int max_iteration, double p_max_prec):
     qcu.qcuInvert(max_iteration, p_max_prec)
 
+def setStaggeredPhase(int staggered_phase):
+    qcu.setStaggeredPhase(staggered_phase)
+
 def gauge_eo_precondition(Pointer prec_gauge, Pointer non_prec_gauge, int precision):
     qcu.gauge_eo_precondition(prec_gauge.ptr, non_prec_gauge.ptr, precision)
 def gauge_reverse_eo_precondition(Pointer non_prec_gauge, Pointer prec_gauge, int precision):
     qcu.gauge_reverse_eo_precondition(non_prec_gauge.ptr, prec_gauge.ptr, precision)
 def read_gauge_from_file (Pointer gauge, bytes binary_file_path_prefix):
-    qcu.read_gauge_from_file (gauge.ptr, binary_file_path_prefix);
+    qcu.read_gauge_from_file (gauge.ptr, binary_file_path_prefix)
+def begin_scatter():
+    qcu.begin_scatter()
+def begin_gather():
+    qcu.begin_gather()
