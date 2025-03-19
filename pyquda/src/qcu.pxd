@@ -20,3 +20,5 @@ cdef extern from "qcu.h":
     void begin_scatter()
 
     void begin_gather()
+    void set_tensor_core_flag(int tensor_core_flag)
+    void set_residual_combine_flag(int residual_combine_flag)

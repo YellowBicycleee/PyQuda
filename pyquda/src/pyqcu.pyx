@@ -83,3 +83,7 @@ def begin_scatter():
     qcu.begin_scatter()
 def begin_gather():
     qcu.begin_gather()
+def set_tensor_core_flag(int tensor_core_flag):
+    qcu.set_tensor_core_flag(tensor_core_flag)
+def set_residual_combine_flag(int residual_combine_flag):
+    qcu.set_residual_combine_flag(residual_combine_flag)

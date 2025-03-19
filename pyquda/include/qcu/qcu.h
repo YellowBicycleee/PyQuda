@@ -31,6 +31,9 @@ void read_gauge_from_file (void* gauge, const char* file_path_prefix);
 void begin_scatter();
 // 启动gather
 void begin_gather();
+
+void set_tensor_core_flag(int tensor_core_flag);
+void set_residual_combine_flag(int residual_combine_flag);
 #ifdef __cplusplus
 }
 #endif
