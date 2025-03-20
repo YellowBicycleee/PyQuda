@@ -6,7 +6,8 @@ import numpy as np
 # 读取CSV文件
 def load_data():
     # df = pd.read_csv('data/su6_single_beta.csv')
-    df = pd.read_csv('data/su9_single_lambda.csv')
+    # df = pd.read_csv('data/su6_single_lambda.csv')
+    df = pd.read_csv('data/su6_start_from_lambda_5.csv')
     return df
 
 # 创建3D图表

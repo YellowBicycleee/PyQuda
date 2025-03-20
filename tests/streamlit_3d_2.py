@@ -52,68 +52,74 @@ def create_2d_plot(df1, df2, axis, value, point_size, same_color=True):
     color2 = 'blue' if same_color else 'red'
 
     if axis == 'traj':
-        # 检查value是否在合理范围内
-        if 0 <= int(value) < df1.shape[0]:
-            y1 = df1.columns.astype(float).values
-            z1 = df1.iloc[int(value)].values
-            fig.add_trace(go.Scatter(
-                x=y1, y=z1, mode='lines+markers',
-                marker=dict(size=point_size, color=color1),
-                line=dict(color=color1),
-                name=file1
-            ))
+        # CSV1
+        y1 = df1.columns.astype(float).values
+        z1 = df1.iloc[int(value)].values
+        fig.add_trace(go.Scatter(
+            x=y1, y=z1, mode='lines+markers',
+            marker=dict(size=point_size, color=color1),
+            line=dict(color=color1),
+            name=file1
+        ))
         
-        if 0 <= int(value) < df2.shape[0]:
-            y2 = df2.columns.astype(float).values
-            z2 = df2.iloc[int(value)].values
-            fig.add_trace(go.Scatter(
-                x=y2, y=z2, mode='lines+markers',
-                marker=dict(size=point_size, color=color2),
-                line=dict(color=color2),
-                name=file2
-            ))
+        # CSV2
+        y2 = df2.columns.astype(float).values
+        z2 = df2.iloc[int(value)].values
+        fig.add_trace(go.Scatter(
+            x=y2, y=z2, mode='lines+markers',
+            marker=dict(size=point_size, color=color2),
+            line=dict(color=color2),
+            name=file2
+        ))
         
-    else:  # axis == 'lambda'
-        # 检查value是否存在于各个数据集中
-        if str(value) in df1.columns:
-            x1 = np.arange(df1.shape[0])
-            z1 = df1[str(value)].values
-            fig.add_trace(go.Scatter(
-                x=x1, y=z1, mode='lines+markers',
-                marker=dict(size=point_size, color=color1),
-                line=dict(color=color1),
-                name=file1
-            ))
-        
-        if str(value) in df2.columns:
-            x2 = np.arange(df2.shape[0])
-            z2 = df2[str(value)].values
-            fig.add_trace(go.Scatter(
-                x=x2, y=z2, mode='lines+markers',
-                marker=dict(size=point_size, color=color2),
-                line=dict(color=color2),
-                name=file2
-            ))
-
-    # 设置图表布局
-    title_suffix = f'traj={value}' if axis == 'traj' else f'lambda={value}'
-    fig.update_layout(
-        title=f'2D Plot for {title_suffix}',
-        xaxis_title='lambda' if axis == 'traj' else 'traj',
-        yaxis_title='plaquette',
-        yaxis=dict(range=[0, 1]),
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=-0.3,
-            xanchor="center",
-            x=0.5
+        fig.update_layout(
+            title=f'2D Plot for traj={value}',
+            xaxis_title='lambda',
+            yaxis_title='plaquette',
+            xaxis=dict(range=[1.3, 1.5]),
+            yaxis=dict(range=[0, 1]),
+            legend=dict(
+                orientation="h",  # 水平放置图例
+                yanchor="bottom",
+                y=-0.3,  # 将图例放在图表下方
+                xanchor="center",
+                x=0.5
+            )
         )
-    )
-    
-    # 只在traj模式下设置x轴范围
-    if axis == 'traj':
-        fig.update_layout(xaxis=dict(range=[1.3, 1.5]))
+        
+    else:
+        # 类似的修改应用于 lambda 轴的情况
+        x1 = np.arange(df1.shape[0])
+        z1 = df1.loc[:, str(value)].values
+        fig.add_trace(go.Scatter(
+            x=x1, y=z1, mode='lines+markers',
+            marker=dict(size=point_size, color=color1),
+            line=dict(color=color1),
+            name=file1
+        ))
+        
+        x2 = np.arange(df2.shape[0])
+        z2 = df2.loc[:, str(value)].values
+        fig.add_trace(go.Scatter(
+            x=x2, y=z2, mode='lines+markers',
+            marker=dict(size=point_size, color=color2),
+            line=dict(color=color2),
+            name=file2
+        ))
+        
+        fig.update_layout(
+            title=f'2D Plot for lambda={value}',
+            xaxis_title='traj',
+            yaxis_title='plaquette',
+            yaxis=dict(range=[0, 1]),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=-0.3,
+                xanchor="center",
+                x=0.5
+            )
+        )
     
     return fig
 
