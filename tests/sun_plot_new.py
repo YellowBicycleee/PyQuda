@@ -4,21 +4,30 @@ import my_csv
 from mpl_toolkits.axes_grid1.inset_locator import mark_inset
 import numpy as np
 
-line_color = ['blue', 'orange', 'green', 'red', 'purple', 'brown']
-ref_color = ['darkblue', 'm']
+# 在文件开头添加常量定义
+PLOT_CONSTANTS = {
+    'line_color': ['blue', 'orange', 'green', 'red', 'purple', 'brown'],
+    'ref_color': ['darkblue', 'm'],
+    'linewidth': 1.5,
+    'figure_size': (8, 5),
+    'legend_size': 8
+}
 
 # x = Nc * g^2
 def draw_table2 (x, x_label, y, y_label, Nc, table_title, file_name = 'Nc_g_square') :
     batch_num = Nc.size
-    lw = 1.5
+    lw = PLOT_CONSTANTS['linewidth']
     mk_size = [2 for _ in range(len(Nc))]
-    fig = plt.figure(0, figsize=(8, 5))#用来控制图片的大小
+    
+    # 使用统一的图形尺寸
+    fig = plt.figure(0, figsize=PLOT_CONSTANTS['figure_size'])
 
     left, bottom, width, height = 0.12, 0.12, 0.8, 0.8
     
     sub1 = fig.add_axes([left, bottom, width, height])
     sub1.axis([0, 10, 0, 1])
     sub1.set_title(f'{table_title}')
+    # 统一主图刻度标签大小
     sub1.tick_params(size = 5, labelsize=12, direction='in')
     sub1.grid(visible=True, ls=":")
 
@@ -30,12 +39,12 @@ def draw_table2 (x, x_label, y, y_label, Nc, table_title, file_name = 'Nc_g_squa
     ref_x1_arr = np.arange(1.1, 5, 0.1)
     ref_y1_arr = ref_y3(ref_x1_arr)
     ref_y1_label = r'$\frac{1}{2 \lambda}$'
-    sub1.plot(ref_x1_arr, ref_y1_arr, label=f'{ref_y1_label}', linestyle = '--', color = ref_color[0], linewidth=2.5)
+    sub1.plot(ref_x1_arr, ref_y1_arr, label=f'{ref_y1_label}', linestyle = '--', color = PLOT_CONSTANTS['ref_color'][0], linewidth=2.5)
 
     ref_x2_arr = np.arange(0.1, 2, 0.1)
     ref_y2_arr = ref_y4(ref_x2_arr)
     ref_y2_label = r'$1 - \frac{1}{4} \lambda$'
-    sub1.plot(ref_x2_arr, ref_y2_arr, label=f'{ref_y2_label}', linestyle = '--', color = ref_color[1], linewidth=2.5)
+    sub1.plot(ref_x2_arr, ref_y2_arr, label=f'{ref_y2_label}', linestyle = '--', color = PLOT_CONSTANTS['ref_color'][1], linewidth=2.5)
 
     # 子图
     box = [1.38, 1.55, 0.37, 0.6]
@@ -43,6 +52,7 @@ def draw_table2 (x, x_label, y, y_label, Nc, table_title, file_name = 'Nc_g_squa
     left, bottom, width, height = 0.6, 0.5, scale * (box[1] - box[0]) / 2.5, 0.4 * scale * (box[3] - box[2]) / 1
     sub2 = fig.add_axes([left, bottom, width, height])
     sub2.axis(box)
+    # 统一子图刻度标签大小
     sub2.tick_params(size=2, labelsize=8, direction='in')
     sub2.set_xlabel(f'{x_label}')
     sub2.set_ylabel(f'{y_label}')
@@ -67,7 +77,7 @@ def draw_table2 (x, x_label, y, y_label, Nc, table_title, file_name = 'Nc_g_squa
     sub1.set_xlabel(f'{x_label}')
     sub1.set_ylabel(f'{y_label}')
     # sub1.legend(loc='upper right')
-    sub1.legend(loc='lower left')
+    sub1.legend(loc='lower left', fontsize=PLOT_CONSTANTS['legend_size'])
 
 
     plt.savefig(file_name)
@@ -128,6 +138,6 @@ if __name__ == '__main__' :
     lambda_label = r'$\lambda$'
 
     table2_title = r'$\frac{1}{N_c}\mathrm{Tr}[U^{1\times 1}_{P, \mu\nu}(N_c, g^2)]$'
-    file_name = 'plaq_lambda.svg'
+    file_name = 'plaq_lambda.pdf'
 
     draw_table2 (lambda_res, lambda_label, y, y_label, Nc, table_title=table2_title, file_name=file_name)
