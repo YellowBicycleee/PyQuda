@@ -69,7 +69,7 @@ def test_mpi(my_m_input, warm_flag = False):
   from pyquda.mpi import rank
   from pyquda.enum_quda import QudaInverterType
   # get quda_dslash operator
-  quda_dslash = core.getDslash(latt_size, mass, 1e-9, 1000, xi_0, nu, coeff_t, coeff_r, multigrid=False, anti_periodic_t=False)
+  quda_dslash = core.getDslash(latt_size, mass, max_prec, 1000, xi_0, nu, coeff_t, coeff_r, multigrid=False, anti_periodic_t=False)
   quda_dslash.invert_param.inv_type = QudaInverterType.QUDA_BICGSTAB_INVERTER
   # quda_dslash.invert_param.chrono_precision = max_prec
   
@@ -110,8 +110,10 @@ def test_mpi(my_m_input, warm_flag = False):
   # print(f'rank {rank}, average difference between quda_x_mrhs and x_mrhs: , {diff_b_b_groundtruth / my_m_input}')
 
   #my code 
+  qcu.set_tensor_core_flag(0)
+  qcu.set_residual_combine_flag(1)
+  qcu.getDslash(0, mass, 0) # 0----WILSON
   qcu.loadQcuGauge(U.data_ptr, 2)		# 2---double 1--float 0---half
-  qcu.getDslash(0, mass) # 0----WILSON
   cp.cuda.runtime.deviceSynchronize()
   # qcu invert 
   t1 = perf_counter()
@@ -146,9 +148,9 @@ def test_mpi(my_m_input, warm_flag = False):
           , {cp.linalg.norm(b_mrhs[i].data - qcu_b_mrhs[i].data) / cp.linalg.norm(b_mrhs[i].data)}')
 
     # diff_b_b_groundtruth += cp.linalg.norm(qcu_x_mrhs[i].data - x_mrhs[i].data) / cp.linalg.norm(x_mrhs[i].data)
-    # print(f'rank {rank}, even qcu_x_mrhs = {qcu_x_mrhs[i].data[0, 0, 0, 0, 0]}')
-    # print(f'rank {rank}, odd qcu_x_mrhs = {qcu_x_mrhs[i].data[1, 0, 0, 0, 0]}')
-  
+    # print(f'rank {rank}, even quda_x_mrhs = {quda_x_mrhs[i].data[0, 0, 0, 0, 0]}')
+    # print(f'rank {rank}, even qcu_x_mrhs = {qcu_x_mrhs[i].data[1, 0, 0, 0, 0]}')
+    
   # print ('=====================')
   # for i in range(my_m_input):
   #   print(f'rank {rank}, even b_mrhs = {b_mrhs[i].data[0, 0, 0, 0, 0]}')
@@ -194,11 +196,11 @@ def test_bicgstab(my_n_color, my_m_input, input_prec, dslash_prec, quda_average_
 
 
 if __name__ == '__main__' :
-  max_input = 2
+  max_input = 4
   my_n_color = 3
 
   my_input_prec  = double_prec
-  my_dslash_prec = double_prec
+  my_dslash_prec = float_prec
 
   quda_total_time = []
   qcu_total_time  = []
