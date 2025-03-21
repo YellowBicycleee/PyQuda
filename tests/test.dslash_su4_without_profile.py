@@ -50,38 +50,18 @@ double_prec = 2
 precision_table = ['half', 'float', 'double']
 
 
-def compare_result(quda_result, qcu_result):
-    same = []
-    diff = []
-    print(f'quda_result.data.shape: {quda_result.data.shape}')
-    print(f'qcu_result.data.shape: {qcu_result.data.shape}')
-    for parity in range(2):
-        for t in range(Lt):
-            for z in range(Lz):
-                for y in range(Ly):
-                    for x in range(Lx // 2):
-                        point_diff = cp.linalg.norm(quda_result.data[parity, t, z, y, x] - qcu_result.data[parity, t, z, y, x])
-                        if point_diff < 1e-6:
-                            same.append(point_diff)
-                        else:
-                            diff.append(point_diff)
-    print(f'same: {len(same)}, diff: {len(diff)}, total: {len(same) + len(diff)}')
-
-
 def test_mpi(round, my_m_input, warm_flag = False):
     from pyquda.mpi import comm, rank, size, grid, coord, gpuid
     p_mrhs = [LatticeFermion(latt_size, Nc, cp.random.randn(Lt, Lz, Ly, Lx, Ns, Nc * 2).view(cp.complex128)) \
             for i in range(my_m_input)]
-    # p_mrhs = [LatticeFermion(latt_size, Nc, cp.ones((Lt, Lz, Ly, Lx, Ns, Nc * 2)).view(cp.complex128)) \
-    #     for i in range(my_m_input)]
 
-    quda_Mp_mrhs = [LatticeFermion(latt_size, Nc) for i in range(my_m_input)]
+    # quda_Mp_mrhs = [LatticeFermion(latt_size, Nc) for i in range(my_m_input)]
     qcu_Mp_mrhs = [LatticeFermion(latt_size, Nc) for i in range(my_m_input)]
 
     U = gauge_utils.unitGauge(latt_size, Nc)
 
     #my code 
-    qcu.set_tensor_core_flag(1)
+    qcu.set_tensor_core_flag(0) # 0 - use tensor core, 1 - not use tensor core, ensure you have sm_80+ gpu
     qcu.getDslash(0, mass, 0) # 0----WILSON, 关闭反周期
     qcu.read_gauge_from_file(U.data_ptr, 'test_su4_gauge.hdf5'.encode('utf-8'))
     qcu.loadQcuGauge(U.data_ptr, 2)		# 2---double 1--float 0---half
@@ -93,59 +73,33 @@ def test_mpi(round, my_m_input, warm_flag = False):
 
     # with profile
     # if you donnot need profile, just remove the time measurement code
-    calculate_time = 0
-    scatter_time = 0
-    gather_time = 0
+    qcu_time = 0
     
+    t1 = perf_counter()
     for i in range(my_m_input):
         qcu.pushBackFermions(qcu_Mp_mrhs[i].even_ptr, p_mrhs[i].odd_ptr)
-    t1 = perf_counter()
     qcu.begin_gather()
-    cp.cuda.runtime.deviceSynchronize()
-    t2 = perf_counter()
-    gather_time += t2 - t1
-    
-    t1 = perf_counter()
     qcu.start_dslash(0, 0)	# param1 : parity  param2: dagger
     cp.cuda.runtime.deviceSynchronize()
-    t2 = perf_counter()
-    calculate_time += t2 - t1
-
-    t1 = perf_counter()
     qcu.begin_scatter()
     cp.cuda.runtime.deviceSynchronize()
-    t2 = perf_counter()
-    scatter_time += t2 - t1
 
 
     for i in range(my_m_input):
         qcu.pushBackFermions(qcu_Mp_mrhs[i].odd_ptr, p_mrhs[i].even_ptr)
-    t1 = perf_counter()
     qcu.begin_gather()
-    cp.cuda.runtime.deviceSynchronize()
-    t2 = perf_counter()
-    gather_time += t2 - t1
-
-    t1 = perf_counter()
     qcu.start_dslash(1, 0)
     cp.cuda.runtime.deviceSynchronize()
-    t2 = perf_counter()
-    calculate_time += t2 - t1
-
-    t1 = perf_counter()
     qcu.begin_scatter()
     cp.cuda.runtime.deviceSynchronize()
     t2 = perf_counter()
-    scatter_time += t2 - t1
-    # for i in range(my_m_input):
-    #     print(f'fermion[{i}, 0, 0, 0, Lx // 2 -1,0 ] = \n{p_mrhs[i].data[1, 0, 0, 0, 0, 0] - 1j * p_mrhs[i].data[1, 0, 0, 0, 0, 3]}')
-    #     print(f'fermion[{i}, 0, 0, 0, Lx // 2 -1,1 ] = \n{p_mrhs[i].data[1, 0, 0, 0, 0, 1] - 1j * p_mrhs[i].data[1, 0, 0, 0, 0, 2]}')
+
+    qcu_time += t2 - t1
 
     if (not warm_flag):
-        # print(f"Quda dslash: {quda_dslash_time}sec \n"
-        print(f"Qcu dslash: total {calculate_time + scatter_time + gather_time}sec, calculate {calculate_time}, scatter {scatter_time}, gather {gather_time}")
+        print(f"Qcu dslash: total {qcu_time}sec")
     print(f'qcu_Mp_mrhs[0].data[0, 0, 0, 0, 0] = \n{qcu_Mp_mrhs[0].data[0, 0, 0, 0, 0]}')
-    return calculate_time
+    return qcu_time
 
 
 def test_dslash(my_n_color, my_m_input, input_prec, dslash_prec, qcu_average_time, warmup_flag = False)->int:
