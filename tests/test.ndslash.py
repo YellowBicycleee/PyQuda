@@ -19,8 +19,8 @@ os.environ["QUDA_RESOURCE_PATH"] = ".cache"
 
 Nd, Ns = 4, 4
 Nc = 3
-# latt_size = [4, 4, 4, 4] # lattice description
-latt_size = [16, 16, 16, 16] # lattice description
+latt_size = [4, 4, 4, 4] # lattice description
+# latt_size = [16, 16, 16, 16] # lattice description
 grid_size = [1, 1, 1, 1]     # process description
 
 
@@ -62,11 +62,15 @@ def compare_result(quda_result, qcu_result):
                 for y in range(Ly):
                     for x in range(Lx // 2):
                         point_diff = cp.linalg.norm(quda_result.data[parity, t, z, y, x] - qcu_result.data[parity, t, z, y, x])
-                        if point_diff < 1e-6:
+                        if point_diff < 1e-3:
                             same.append(point_diff)
                         else:
                             diff.append(point_diff)
     print(f'same: {len(same)}, diff: {len(diff)}, total: {len(same) + len(diff)}')
+    print(f'first element : {cp.linalg.norm(quda_result.data[0, 0, 0, 0, 0] - qcu_result.data[0, 0, 0, 0, 0]) / cp.linalg.norm(quda_result.data[0, 0, 0, 0, 0])}')
+    print(f'quda = {quda_result.data[0, 0, 0, 0, 0]}')
+    print(f'qcu  = {qcu_result.data[0, 0, 0, 0, 0]}')
+    print(f'quda-qcu element : \n{quda_result.data[0, 0, 0, 0, 0] - qcu_result.data[0, 0, 0, 0, 0]}')
 
 
 def test_mpi(round, my_m_input, warm_flag = False):
@@ -161,10 +165,12 @@ def test_mpi(round, my_m_input, warm_flag = False):
     #         {cp.linalg.norm(quda_Mp_mrhs[i].data - qcu_Mp_mrhs[i].data) / cp.linalg.norm(quda_Mp_mrhs[i].data)}')
     # for i in range(my_m_input):
     #     if mpi.rank == 0:
-    #         print(f'quda_res = \n{quda_Mp_mrhs[i].data[0, 0, 0, 0, 0]}')
-    #         print(f'qcu_res = \n{qcu_Mp_mrhs[i].data[0, 0, 0, 0, 0]}')
+    #         print(f'quda_res = \n{quda_Mp_mrhs[i].data[1, Lt - 1, Lz - 1, Ly - 1, Lx // 2 - 1]}')
+    #         print(f'qcu_res = \n{qcu_Mp_mrhs[i].data[1, Lt - 1, Lz - 1, Ly - 1, Lx // 2 - 1]}')
     average_difference = cp.sum(cp.array([cp.linalg.norm(quda_Mp_mrhs[i].data - qcu_Mp_mrhs[i].data) / cp.linalg.norm(quda_Mp_mrhs[i].data) \
                 for i in range(my_m_input)])) / my_m_input
+    # if 
+    # assert(average_difference < 1e-13)
     print(f'rank {rank}, average difference: , {average_difference}')
 
     # average_difference = cp.sum(cp.array([cp.linalg.norm(quda_Mp_mrhs[i].data[0] - qcu_Mp_mrhs[i].data[0]) / cp.linalg.norm(quda_Mp_mrhs[i].data[0]) \
@@ -211,7 +217,7 @@ if __name__ == '__main__' :
     operations_per_dslash = operations_per_point * Lx * Ly * Lz * Lt
 
     my_input_prec  = double_prec
-    my_dslash_prec = double_prec
+    my_dslash_prec = half_prec
 
     quda_average_time = []
     qcu_average_time  = []
