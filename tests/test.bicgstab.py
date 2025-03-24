@@ -49,7 +49,7 @@ float_prec = 1
 double_prec = 2
 
 precision_table = ['half', 'float', 'double']
-max_iteration = 1000
+max_iteration = 100
 max_prec = 1e-4
 
 Nc = 3
@@ -110,7 +110,7 @@ def test_mpi(my_m_input, warm_flag = False):
   # print(f'rank {rank}, average difference between quda_x_mrhs and x_mrhs: , {diff_b_b_groundtruth / my_m_input}')
 
   #my code 
-  qcu.set_tensor_core_flag(0)
+  qcu.set_tensor_core_flag(1)
   qcu.set_residual_combine_flag(1)
   qcu.getDslash(0, mass, 0) # 0----WILSON
   qcu.loadQcuGauge(U.data_ptr, 2)		# 2---double 1--float 0---half
@@ -147,6 +147,11 @@ def test_mpi(my_m_input, warm_flag = False):
     print(f'rank {rank}, rhs {i} difference between qcu_x_mrhs and x_mrhs: \
           , {cp.linalg.norm(b_mrhs[i].data - qcu_b_mrhs[i].data) / cp.linalg.norm(b_mrhs[i].data)}')
 
+#   print(f'qcu_x_mrhs[0].data[0, 0, 0, 0, 0] = {qcu_x_mrhs[0].data[0, 0, 0, 0, 0]}')
+#   print(f'x_mrhs[0].data[0, 0, 0, 0, 0] = {x_mrhs[0].data[0, 0, 0, 0, 0]}')
+#   print(f'===================================')
+#   print(f'qcu_x_mrhs[0].data[1, 0, 0, 0, 0] = {qcu_x_mrhs[0].data[1, 0, 0, 0, 0]}')
+#   print(f'x_mrhs[0].data[1, 0, 0, 0, 0] = {x_mrhs[0].data[1, 0, 0, 0, 0]}')
     # diff_b_b_groundtruth += cp.linalg.norm(qcu_x_mrhs[i].data - x_mrhs[i].data) / cp.linalg.norm(x_mrhs[i].data)
     # print(f'rank {rank}, even quda_x_mrhs = {quda_x_mrhs[i].data[0, 0, 0, 0, 0]}')
     # print(f'rank {rank}, even qcu_x_mrhs = {qcu_x_mrhs[i].data[1, 0, 0, 0, 0]}')
@@ -196,11 +201,11 @@ def test_bicgstab(my_n_color, my_m_input, input_prec, dslash_prec, quda_average_
 
 
 if __name__ == '__main__' :
-  max_input = 4
+  max_input = 16
   my_n_color = 3
 
   my_input_prec  = double_prec
-  my_dslash_prec = float_prec
+  my_dslash_prec = double_prec
 
   quda_total_time = []
   qcu_total_time  = []
@@ -211,10 +216,10 @@ if __name__ == '__main__' :
   # warm up end
 
   # for my_m_input in range(1, max_input+1):
-  for my_m_input in range(1, max_input+1):
+  for my_m_input in range(1, 4):
     # print(f'=========== mrhs = {my_m_input} condition begin ===========')
     print(f'BEGIN PROGRAM=======cur input = {my_m_input} ===>>>>>>>>>>>>')
-    test_bicgstab(my_n_color, my_m_input=8, input_prec=my_input_prec, dslash_prec=my_dslash_prec, quda_average_time = quda_total_time, qcu_average_time = qcu_total_time)
+    test_bicgstab(my_n_color, my_m_input=max_input, input_prec=my_input_prec, dslash_prec=my_dslash_prec, quda_average_time = quda_total_time, qcu_average_time = qcu_total_time)
     print(f'quda_mrhs_total_time: {quda_total_time}')
     print(f'qcu_mrhs_total_time: {qcu_total_time}')
     cp.cuda.runtime.deviceSynchronize()
