@@ -18,9 +18,9 @@ from pyquda.utils import gauge_utils
 os.environ["QUDA_RESOURCE_PATH"] = ".cache"
 
 Nd, Ns = 4, 4
-Nc = 3
-# latt_size = [4, 4, 4, 4] # lattice description
-latt_size = [16, 16, 32, 32] # lattice description
+Nc = 8
+latt_size = [4, 4, 4, 4] # lattice description
+# latt_size = [16, 16, 16, 16] # lattice description
 grid_size = [1, 1, 1, 1]     # process description
 
 
@@ -101,18 +101,19 @@ def validate_qcu(
     qcu_Mp_mrhs  = [LatticeFermion(latt_size, Nc) for _ in range(my_m_input)]
 
     dslash = core.getDslash(latt_size, mass, 1e-9, 1000, xi_0, nu, coeff_t, coeff_r, multigrid=False, anti_periodic_t=False)
-    U      = gauge_utils.gaussGauge(latt_size, 0)
+    # U      = gauge_utils.gaussGauge(latt_size, 0)
+    U      = gauge_utils.unitGauge(latt_size, Nc)
     dslash.loadGauge(U)
     cp.cuda.runtime.deviceSynchronize()
 
-    # profile quda dslash
-    t1 = perf_counter()
-    for i in range(my_m_input):
-        quda.dslashQuda(quda_Mp_mrhs[i].even_ptr, p_mrhs[i].odd_ptr, dslash.invert_param, QudaParity.QUDA_EVEN_PARITY)
-        quda.dslashQuda(quda_Mp_mrhs[i].odd_ptr, p_mrhs[i].even_ptr, dslash.invert_param, QudaParity.QUDA_ODD_PARITY)
-    cp.cuda.runtime.deviceSynchronize()
-    t2 = perf_counter()
-    quda_dslash_time = t2 - t1
+    # # profile quda dslash
+    # t1 = perf_counter()
+    # for i in range(my_m_input):
+    #     quda.dslashQuda(quda_Mp_mrhs[i].even_ptr, p_mrhs[i].odd_ptr, dslash.invert_param, QudaParity.QUDA_EVEN_PARITY)
+    #     quda.dslashQuda(quda_Mp_mrhs[i].odd_ptr, p_mrhs[i].even_ptr, dslash.invert_param, QudaParity.QUDA_ODD_PARITY)
+    # cp.cuda.runtime.deviceSynchronize()
+    # t2 = perf_counter()
+    quda_dslash_time = 0
 
     # qcu code 
     qcu.set_tensor_core_flag(0)
@@ -195,9 +196,9 @@ def test_dslash(
     # for _ in range(iteration) :
     quda_time, qcu_time, qcu_calculate_time = validate_qcu(m_rhs)
     
-    flop = get_wilson_flop_4dim(latt_size, Nc) * my_m_input
-    flops = GFlops(flop, qcu_calculate_time)
-    print(f'precision: {Precision.get_precision_name(dslash_prec)}, qcu_calculate_time = {qcu_calculate_time}, flop = {flop}, flops = {flops}')
+    flop = get_wilson_flop_4dim(latt_size, Nc)
+    flops = GFlops(flop, quda_time)
+    print(f'precision: {Precision.get_precision_name(dslash_prec)}, flop = {flop}, flops = {flops}')
     if not warmup_flag :
         quda_time += quda_time
         qcu_time += qcu_time

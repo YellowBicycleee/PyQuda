@@ -176,7 +176,7 @@ if __name__ == '__main__' :
     operations_per_dslash = operations_per_point * Lx * Ly * Lz * Lt
 
     my_input_prec  = double_prec
-    my_dslash_prec = double_prec
+    my_dslash_prec = half_prec
 
     qcu_average_time  = []
 

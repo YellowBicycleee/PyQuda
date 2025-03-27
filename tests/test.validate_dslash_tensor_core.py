@@ -20,7 +20,7 @@ os.environ["QUDA_RESOURCE_PATH"] = ".cache"
 Nd, Ns = 4, 4
 Nc = 3
 # latt_size = [4, 4, 4, 4] # lattice description
-latt_size = [16, 16, 32, 32] # lattice description
+latt_size = [16, 16, 16, 16] # lattice description
 grid_size = [1, 1, 1, 1]     # process description
 
 
@@ -65,17 +65,9 @@ class Precision :
     计算Wilson费米子场操作的flop
 '''
 def get_wilson_flop_4dim (latt_desc: list, color: int) :
-    # projection: 2 * Nd * Nc * Ns = 8 * 4 * Nc = 32 * Nc
-    # su(n) gemv: 2 * Nd * Ns / 2 * (8 * Nc * Nc) = 8 * 2 * 8 * Nc * Nc = 128 * Nc * Nc
-    # reconstruction: 2 * Nd * Nc * Ns = 8 * 4 * Nc = 32 * Nc
-    # total: 128 * Nc * Nc + 64 * Nc
-
-    operations_per_point = (2 * Nd * Nc * Ns) + (2 * Nd * Ns / 2 * (8 * Nc-2)*Nc) + ((2 * Nd - 1) * 2 * Nc * Ns)
-    # operations_per_dslash = operations_per_point * Lx * Ly * Lz * Lt
-    # vol = latt_desc[0] * latt_desc[1] * latt_desc[2] * latt_desc[3]
+    # 128 * color * color + 96 * color 
     vol = latt_desc[0] * latt_desc[1] * latt_desc[2] * latt_desc[3]
-    # return (128 * color * color + 64 * color) * vol
-    return operations_per_point * vol
+    return (128 * color * color + 96 * color) * vol
 
 '''
     计算GFlop/s, time: second
@@ -115,7 +107,7 @@ def validate_qcu(
     quda_dslash_time = t2 - t1
 
     # qcu code 
-    qcu.set_tensor_core_flag(0)
+    qcu.set_tensor_core_flag(1)
     qcu.getDslash(0, mass, 0)           # 参数1：0----WILSON， 参数3暂时未使用
     qcu.loadQcuGauge(U.data_ptr, Precision.kPrecisionDouble)		# 2---double 1--float 0---half
 
@@ -164,14 +156,16 @@ def validate_qcu(
     t2 = perf_counter()
     qcu_scatter_time += t2 - t1
 
+
+    diff = cp.array([cp.linalg.norm(quda_Mp_mrhs[i].data - qcu_Mp_mrhs[i].data) / cp.linalg.norm(quda_Mp_mrhs[i].data) for i in range(my_m_input)])
     if (not warm_flag):
-        print(f"Quda dslash: {quda_dslash_time} sec \n"
+        print(f"Quda dslash: {quda_dslash_time}sec \n"
             f"Qcu dslash: total {qcu_calculate_time + qcu_scatter_time + qcu_gather_time}sec, calculate {qcu_calculate_time}, scatter {qcu_scatter_time}, gather {qcu_gather_time}")
 
-    average_difference = cp.sum(cp.array([cp.linalg.norm(quda_Mp_mrhs[i].data - qcu_Mp_mrhs[i].data) / cp.linalg.norm(quda_Mp_mrhs[i].data) for i in range(my_m_input)])) / my_m_input
-    print(f'rank {rank}, average difference: , {average_difference}')
+    average_difference = cp.sum(diff) / my_m_input
+    print(f'rank {rank}, average difference: {average_difference}')
 
-    return quda_dslash_time, qcu_calculate_time + qcu_scatter_time + qcu_gather_time, qcu_calculate_time
+    return diff
 
 
 def test_dslash(
@@ -179,9 +173,6 @@ def test_dslash(
         m_rhs, 
         input_prec, 
         dslash_prec, 
-        quda_time, 
-        qcu_time, 
-        qcu_calculate_time,
         warmup_flag = False) :
     
     qcu.initGridSize(grid, param, color, m_rhs, input_prec, dslash_prec)
@@ -190,33 +181,28 @@ def test_dslash(
     total_qcu_time = 0
 
     if (not warmup_flag):
-        print(f'=========== mrhs = {my_m_input} condition begin ===========')
+        print(f'=========== mrhs = {m_rhs} condition begin ===========')
     # iteration = 1
     # for _ in range(iteration) :
-    quda_time, qcu_time, qcu_calculate_time = validate_qcu(m_rhs)
+    diff = validate_qcu(m_rhs)
     
-    flop = get_wilson_flop_4dim(latt_size, Nc) * my_m_input
-    flops = GFlops(flop, qcu_calculate_time)
-    print(f'precision: {Precision.get_precision_name(dslash_prec)}, qcu_calculate_time = {qcu_calculate_time}, flop = {flop}, flops = {flops}')
     if not warmup_flag :
-        quda_time += quda_time
-        qcu_time += qcu_time
-        print(f'=========== mrhs = {my_m_input} condition end ===========')
+        print(f'=========== mrhs = {m_rhs} condition end ===========')
 
-        print(f'operations_per_dslash / time: { max_input * operations_per_dslash / (qcu_calculate_time * 1e-9)}')
     qcu.finalizeQcu()
     cp.cuda.runtime.deviceSynchronize()
-    return flops
+    return diff
+
 if __name__ == '__main__' :
     # _ = input()
-    max_input = 16
+    num_rhs = 32
     # my_n_color = Nc
 
     # operations_per_point = (2 * Nd * Nc * Ns) + (2 * Nd * Ns / 2 * (8 * Nc-2)*Nc) + ((2 * Nd - 1) * 2 * Nc * Ns)
     # operations_per_dslash = operations_per_point * Lx * Ly * Lz * Lt
 
     my_input_prec  = Precision.kPrecisionDouble
-    my_dslash_prec = Precision.kPrecisionSingle
+    my_dslash_prec = Precision.kPrecisionHalf
 
     quda_time = []
     qcu_time = []
@@ -227,27 +213,69 @@ if __name__ == '__main__' :
     #     quda_average_time = quda_average_time, qcu_average_time = qcu_average_time, warmup_flag=True)
     # warm up end
 
-    operations_per_point = (2 * Nd * Nc * Ns) + (2 * Nd * Ns / 2 * (8 * Nc-2)*Nc) + ((2 * Nd - 1) * 2 * Nc * Ns)
-    operations_per_dslash = operations_per_point * Lx * Ly * Lz * Lt
+    half_diff = test_dslash(
+        Nc, 
+        num_rhs, 
+        input_prec=my_input_prec, 
+        dslash_prec=Precision.kPrecisionHalf, 
+        warmup_flag = False
+    )
+    print(f'half_diff: {half_diff}')
 
+    double_diff = test_dslash(
+        Nc, 
+        num_rhs, 
+        input_prec=my_input_prec, 
+        dslash_prec=Precision.kPrecisionDouble, 
+        warmup_flag = False
+    )
 
-    flops = []
-    for my_m_input in range(max_input, max_input+1):
-        single_flops = test_dslash(
-            Nc, 
-            my_m_input, 
-            input_prec=my_input_prec, 
-            dslash_prec=my_dslash_prec, 
-            quda_time = quda_time, 
-            qcu_time = qcu_time, 
-            qcu_calculate_time = qcu_calculate_time,
-            warmup_flag = False
+    def plot_precision_comparison(half_diff, double_diff):
+        # Convert CuPy arrays to NumPy if necessary
+        half_diff = half_diff.get() if hasattr(half_diff, 'get') else half_diff
+        double_diff = double_diff.get() if hasattr(double_diff, 'get') else double_diff
+        
+        # Create figure
+        plt.figure(figsize=(10, 6))
+        
+        # Set style
+        plt.style.use('seaborn-v0_8')  # 使用新的seaborn样式名称
+        
+        # Create scatter plot
+        x = np.arange(len(half_diff))
+        plt.scatter(x, half_diff, label='Half', color='#FF9999', alpha=0.7, s=50)
+        plt.scatter(x, double_diff, label='Double', color='#99FF99', alpha=0.7, s=50)
+        
+        # Set log scale for y-axis
+        plt.yscale('log')
+        
+        # Add labels and title
+        plt.title('Relative Error Comparison: Half vs Double Precision', pad=20, fontsize=12)
+        plt.xlabel('Sample Index', fontsize=10)
+        plt.ylabel('Relative Error', fontsize=10)
+        
+        # Add grid with custom style
+        plt.grid(True, linestyle='--', alpha=0.3)
+        
+        # Add legend
+        plt.legend(fontsize=10)
+        
+        # Add statistics
+        stats_text = (
+            f'Statistical Analysis:\n'
+            f'Half:   mean={np.mean(half_diff):.2e}, std={np.std(half_diff):.2e}\n'
+            f'Double: mean={np.mean(double_diff):.2e}, std={np.std(double_diff):.2e}\n'
+            f'Ratio:  mean(Half)/mean(Double)={np.mean(half_diff)/np.mean(double_diff):.2f}x'
         )
-        flops.append(single_flops)
-    print(f'quda_time: {quda_time}')
-    print(f'qcu_time: {qcu_time}')
-    print(f'qcu_calculate_time: {qcu_calculate_time}')
-    print(f'flops: {flops}')
-    print(f'operations_per_dslash: {operations_per_dslash}')
+        plt.figtext(0.15, 0.02, stats_text, fontsize=9)
+        
+        # Adjust layout
+        plt.tight_layout()
+        plt.subplots_adjust(bottom=0.2)
+        
+        # Save figure
+        plt.savefig('precision_comparison_tensor_core.png', dpi=300, bbox_inches='tight')
+        plt.close()
 
-
+    # 在主程序中调用时只传入两个参数
+    plot_precision_comparison(half_diff, double_diff)
