@@ -57,6 +57,7 @@ def test_mpi(round, my_m_input, warm_flag = False):
 
   quda_Mp_mrhs = [LatticeFermion(latt_size, 3) for i in range(my_m_input)]
   qcu_Mp_mrhs = [LatticeFermion(latt_size, 3) for i in range(my_m_input)]
+  qcu_Mp_mrhs_dslash = [LatticeFermion(latt_size, 3) for i in range(my_m_input)]
 
   quda_dslash = core.getDslash(latt_size, mass, 1e-9, 1000, xi_0, nu, coeff_t, coeff_r, multigrid=False, anti_periodic_t=False)
   U = gauge_utils.gaussGauge(latt_size, 0)
@@ -75,16 +76,16 @@ def test_mpi(round, my_m_input, warm_flag = False):
   quda_dslash_time = t2 - t1
 
   #my code 
+  qcu.set_tensor_core_flag(0)
+  qcu.getDslash(0, mass, 0) # 0----WILSON, 关闭反周期
   qcu.loadQcuGauge(U.data_ptr, 2)		# 2---double 1--float 0---half
-  qcu.getDslash(0, mass) # 0----WILSON
-  cp.cuda.runtime.deviceSynchronize()
 
   t1 = perf_counter()
   for i in range(my_m_input):
     qcu.pushBackFermions(qcu_Mp_mrhs[i].even_ptr, p_mrhs[i].even_ptr)
   qcu.mat_Qcu(0)	# param: dagger
   cp.cuda.runtime.deviceSynchronize()
-  print (f'qcu[0, 0, 0, 0, 0] = {qcu_Mp_mrhs[0].data[0, 0, 0, 0, 0]}')
+#   print (f'qcu[0, 0, 0, 0, 0] = {qcu_Mp_mrhs[0].data[0, 0, 0, 0, 0]}')
   t2 = perf_counter()
   qcu_dslash_time = t2 - t1
 
@@ -94,6 +95,10 @@ def test_mpi(round, my_m_input, warm_flag = False):
   average_difference = cp.sum(cp.array([cp.linalg.norm(quda_Mp_mrhs[i].data - qcu_Mp_mrhs[i].data) / cp.linalg.norm(quda_Mp_mrhs[i].data) \
               for i in range(my_m_input)])) / my_m_input
   print(f'rank {rank}, average difference: , {average_difference}')
+
+#   print(f'qcu_Mp_mrhs[0].data[0, 0, 0, 0, 1] = {qcu_Mp_mrhs[0].data[0, 0, 0, 0, 1]}')
+#   print(f'quda_Mp_mrhs[0].data[0, 0, 0, 0, 1] = {quda_Mp_mrhs[0].data[0, 0, 0, 0, 1]}')
+
   print('===============================')
   return quda_dslash_time, qcu_dslash_time
 
@@ -126,7 +131,7 @@ if __name__ == '__main__' :
   my_n_color = 3
 
   my_input_prec  = double_prec
-  my_dslash_prec = double_prec
+  my_dslash_prec = float_prec
 
   quda_average_time = []
   qcu_average_time  = []
